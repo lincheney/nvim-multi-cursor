@@ -271,6 +271,9 @@ local function multicursor_play_keys(self, keys, undojoin)
     local winhighlight = vim.wo.winhighlight
     vim.wo.winhighlight = 'NormalNC:Normal'
 
+    -- remove nop
+    keys = keys:gsub('\x80\xfda', '')
+
     local mode = vim.api.nvim_get_mode()
     if self.mode.mode == 'i' then
         keys = 'i' .. keys
@@ -342,9 +345,24 @@ local function multicursor_process_event(self, args)
         return
     end
 
-    if args.event == 'ModeChanged' and not (VISUALMODES[args.match:sub(1, 1)] or VISUALMODES[args.match:sub(#args.match)]) then
-        -- we only care about mode change to/from visual mode
-        return
+    if args.event == 'ModeChanged' then
+        local to = args.match:sub(1, 1)
+        local from = args.match:sub(#args.match)
+        if not (VISUALMODES[to] or VISUALMODES[from]) then
+            -- we only care about mode change to/from visual mode
+            return
+        end
+
+        if not VISUALMODES[from] then
+            -- just remove the visual ranges instead of playing the macro
+            for i, cursor in ipairs(self.cursors) do
+                if cursor.region then
+                    local mark = get_mark(cursor.region, true)
+                    cursor.region = create_mark({mark[1], mark[2], mark[3].end_row, mark[3].end_col}, nil, cursor.region)
+                end
+            end
+            return
+        end
     end
 
     if self.recursion then
