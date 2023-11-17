@@ -84,6 +84,14 @@ local function make_cursor(position, region, curswant)
     }
 end
 
+local function remove_cursor(self)
+    vim.api.nvim_buf_del_extmark(0, NAMESPACE, self.pos)
+    vim.api.nvim_buf_del_extmark(0, NAMESPACE, self.edit_region)
+    if self.region then
+        vim.api.nvim_buf_del_extmark(0, NAMESPACE, self.region)
+    end
+end
+
 local function cursor_restore_undo_pos(self, undo_seq, highlight)
     local pos = self.undo_pos[undo_seq]
     if pos then
@@ -252,9 +260,23 @@ local function multicursor_record(self, undotree)
     self.changes = nil
 
     local pos = vim.api.nvim_win_get_cursor(0)
-    self.real_cursor.undo_pos[undotree.seq_cur] = {pos[1]-1, pos[2]}
+    pos[1] = pos[1] - 1
+
+    -- check for overlaps
+    local marks = vim.tbl_map(function(c) return get_mark(c.pos) end, self.cursors)
+    for i = #self.cursors, 1, -1 do
+        for j = 1, i-1 do
+            if (marks[i][1] == marks[j][1] and marks[i][2] == marks[j][2]) or (marks[i][1] == pos[1] and marks[i][2] == pos[2]) then
+                remove_cursor(self.cursors[i])
+                table.remove(self.cursors, i)
+                break
+            end
+        end
+    end
+
+    self.real_cursor.undo_pos[undotree.seq_cur] = pos
     for i, cursor in ipairs(self.cursors) do
-        cursor.undo_pos[undotree.seq_cur] = get_mark(cursor.pos)
+        cursor.undo_pos[undotree.seq_cur] = marks[i]
     end
 end
 
