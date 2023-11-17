@@ -36,6 +36,20 @@ local function set_visual_range(first, last, mode)
     end
 end
 
+local function record_marks(marks)
+    local record = {}
+    for i = 1, #marks do
+        record[marks[i]] = vim.api.nvim_buf_get_mark(0, marks[i])
+    end
+    return record
+end
+
+local function restore_marks(marks)
+    for k, v in pairs(marks) do
+        vim.api.nvim_buf_set_mark(0, k, v[1], v[2], {})
+    end
+end
+
 local function create_mark(pos, highlight, old_mark)
     local line = vim.api.nvim_buf_get_lines(0, pos[1], pos[1]+1, true)[1]
 
@@ -99,6 +113,7 @@ local function make_cursor(position, region, curswant)
         region = region and create_mark(region, VISUAL_HIGHLIGHT),
         undo_pos = {},
         registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS),
+        last_visual = record_marks{'<', '>'},
     }
 end
 
@@ -133,6 +148,8 @@ local function real_cursor_record(self)
     self.edit_region = create_mark(pos, CHANGED_HIGHLIGHT, self.edit_region)
     -- save the registers
     self.registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
+    -- record the last visual area
+    self.last_visual = record_marks{'<', '>'}
 end
 
 local function real_cursor_restore(self, mode)
@@ -149,6 +166,9 @@ local function real_cursor_restore(self, mode)
     if self.region then
         set_visual_range(self.region[1], self.region[2], mode.mode)
     end
+
+    -- restore the last visual area
+    restore_marks(self.last_visual)
 end
 
 local function cursor_record(self, pos)
@@ -172,7 +192,11 @@ local function cursor_record(self, pos)
         self.region = create_mark({region[1][1], region[1][2], region[2][1], region[2][2]}, VISUAL_HIGHLIGHT, self.region)
     elseif self.region then
         vim.api.nvim_buf_del_extmark(0, NAMESPACE, self.region)
+        self.region = nil
     end
+
+    -- record the last visual area
+    self.last_visual = record_marks{'<', '>'}
 end
 local function cursor_restore(self, mode)
     -- restore registers
@@ -189,6 +213,9 @@ local function cursor_restore(self, mode)
             vim.cmd[[normal! o]]
         end
     end
+
+    -- restore the last visual area
+    restore_marks(self.last_visual)
 
     -- go to the cursor
     local mark = get_mark(self.edit_region, true)
