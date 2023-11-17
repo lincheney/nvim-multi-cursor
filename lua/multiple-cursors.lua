@@ -240,7 +240,7 @@ local function cursor_play_keys(self, keys, undojoin, mode)
     -- execute the keys
     vim.cmd((undojoin and 'undojoin | ' or '')..'silent! normal '..keys)
 
-    cursor_record(self, mode.mode == 'i' and RECORDED_POS and {RECORDED_POS[1]-1, RECORDED_POS[2]})
+    cursor_record(self, RECORDED_POS and {RECORDED_POS[1]-1, RECORDED_POS[2]})
 end
 
 local function multicursor_play_keys(self, keys, undojoin)
