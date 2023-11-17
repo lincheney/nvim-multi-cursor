@@ -73,9 +73,10 @@ vim.keymap.set('i', RECORD_POS_PLUG, function()
     RECORDED_POS = vim.api.nvim_win_get_cursor(0)
 end)
 
-local function make_cursor(position, region)
+local function make_cursor(position, region, curswant)
     return {
         pos = create_cursor_highlight_mark(position),
+        curswant = curswant,
         edit_region = create_mark(position, CHANGED_HIGHLIGHT),
         region = region and create_mark(region, VISUAL_HIGHLIGHT),
         undo_pos = {},
@@ -87,28 +88,31 @@ local function cursor_restore_undo_pos(self, undo_seq, highlight)
     local pos = self.undo_pos[undo_seq]
     if pos then
         self.edit_region = create_mark(pos, CHANGED_HIGHLIGHT, self.edit_region)
-        if not highlight then
-            self.pos = create_cursor_highlight_mark(pos, nil, self.pos)
+        self.curswant = pos[2]
+        if highlight then
+            self.pos = create_cursor_highlight_mark(pos, self.pos)
         end
     end
     return self, pos
 end
 
-local function real_cursor_record(cursor)
-    local pos = vim.api.nvim_win_get_cursor(0)
+local function real_cursor_record(self)
+    local pos = vim.fn.getcurpos()
+    self.curswant = pos[5]-1
+    pos = {pos[2]-1, pos[3]-1}
 
     -- save the visual range
-    cursor.region = utils.get_visual_range()
-    -- move the real cursor mark first
-    cursor.edit_region = create_mark({pos[1]-1, pos[2]}, CHANGED_HIGHLIGHT, cursor.edit_region)
+    self.region = utils.get_visual_range()
+    -- move the real self mark first
+    self.edit_region = create_mark(pos, CHANGED_HIGHLIGHT, self.edit_region)
     -- save the registers
-    cursor.registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
+    self.registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
 end
 
 local function real_cursor_restore(self, mode)
     -- get the new cursor pos from the mark
     local mark = get_mark(self.edit_region, true)
-    vim.api.nvim_win_set_cursor(0, {mark[3].end_row+1, mark[3].end_col})
+    vim.fn.setpos('.', {0, mark[3].end_row+1, mark[3].end_col+1, 0, self.curswant+1})
 
     -- restore the registers
     for i = 1, #ALL_REGISTERS do
@@ -126,8 +130,13 @@ local function cursor_record(self, pos)
     self.registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
 
     -- record the position
-    pos = pos or vim.api.nvim_win_get_cursor(0)
-    pos[1] = pos[1] - 1
+    if pos then
+        self.curswant = pos[2]
+    else
+        pos = vim.fn.getcurpos()
+        self.curswant = pos[5]-1
+        pos = {pos[2]-1, pos[3]-1}
+    end
     self.edit_region = create_mark(pos, CHANGED_HIGHLIGHT, self.edit_region)
     self.pos = create_cursor_highlight_mark(pos, self.pos)
 
@@ -155,9 +164,12 @@ local function cursor_restore(self, mode)
         end
     end
 
-    -- go to theself
+    -- go to the cursor
     local mark = get_mark(self.edit_region, true)
     vim.api.nvim_win_set_cursor(0, {mark[3].end_row+1, mark[3].end_col})
+    if self.curswant ~= mark[3].end_col then
+        vim.fn.winrestview({curswant=self.curswant})
+    end
 end
 
 
@@ -182,7 +194,7 @@ local function cursor_play_keys(self, keys, undojoin, mode)
     -- execute the keys
     vim.cmd((undojoin and 'undojoin | ' or '')..'silent! normal '..keys)
 
-    cursor_record(self, mode.mode == 'i' and RECORDED_POS)
+    cursor_record(self, mode.mode == 'i' and RECORDED_POS and {RECORDED_POS[1]-1, RECORDED_POS[2]})
 end
 
 local function multicursor_play_keys(self, keys, undojoin)
@@ -305,11 +317,11 @@ local function multicursor_process_event(self, args)
 
     multicursor_record(self, undotree)
 
-    local pos = vim.api.nvim_win_get_cursor(0)
+    local pos = vim.fn.getcurpos()
     -- start recording again
     vim.cmd('normal! q'..self.register)
     -- macro moves the cursor, so move it back
-    vim.api.nvim_win_set_cursor(0, pos)
+    vim.fn.setpos('.', pos)
     self.recursion = false
 end
 
@@ -321,19 +333,21 @@ function M.start(positions, regions, options)
 
     local undotree = vim.fn.undotree()
 
-    local cursor = vim.api.nvim_win_get_cursor(0)
+    local cursor = vim.fn.getcurpos()
+    local curswant = cursor[5] - 1
     local self = {
         buffer = buffer,
         register = options.register,
         cursors = {},
         real_cursor = {
-            edit_region = create_mark({cursor[1]-1, cursor[2]}, nil),
-            undo_pos = {}
+            edit_region = create_mark({cursor[2]-1, cursor[3]-1}, nil),
+            undo_pos = {},
+            curswant = curswant,
         },
         done = false,
     }
     for i = 1, #positions do
-        table.insert(self.cursors, make_cursor(positions[i], regions and regions[i], options))
+        table.insert(self.cursors, make_cursor(positions[i], regions and regions[i], curswant))
     end
 
     multicursor_record(self, undotree)
