@@ -9,7 +9,6 @@ local DEFAULT_OPTS = {
 local VISUAL_HIGHLIGHT = 'MultiCursorVisual'
 local CHANGED_HIGHLIGHT = 'MultiCursorText'
 local CURSOR_HIGHLIGHT = 'MultiCursor'
-local REGISTER = 'm'
 local ALL_REGISTERS = vim.list_extend(vim.split("-/0123456789abcdefghijklmnopqrstuvwxyz", ''), {''})
 local STATES = {}
 
@@ -204,13 +203,6 @@ local function cursor_play_keys(self, keys, undojoin, mode)
     -- get to normal mode
     vim.cmd(vim_escape('normal! <esc>'))
 
-    -- use a plug to get the self pos *before* we leave insert mode
-    -- since exiting insert mode moves theself
-    RECORDED_POS = nil
-    if mode.mode == 'i' then
-        keys = keys .. vim_escape(RECORD_POS_PLUG)
-    end
-
     if VISUALMODES[mode.mode] and not self.region then
         -- don't know the region, fake it
         keys = mode.mode .. keys
@@ -251,6 +243,13 @@ local function multicursor_play_keys(self, keys, undojoin)
     elseif keys:match('^%s') then
         -- can't start with space, so prefix with 1?
         keys = '1' .. keys
+    end
+
+    -- use a plug to get the self pos *before* we leave insert mode
+    -- since exiting insert mode moves theself
+    RECORDED_POS = nil
+    if mode.mode == 'i' then
+        keys = keys .. vim_escape(RECORD_POS_PLUG)
     end
 
     -- visual range seems to be lost with nvim_win_call()
@@ -300,18 +299,22 @@ local function multicursor_record(self, undotree)
 end
 
 local function multicursor_process_event(self, args)
-    if self.recursion then
-        return
-    end
-    self.recursion = true
-
     local text_changed = args.event:match('^TextChanged')
 
     if not text_changed and vim.b.changedtick ~= self.changedtick then
         -- wait for the TextChanged* instead
-        self.recursion = false
         return
     end
+
+    if args.event == 'ModeChanged' and not (VISUALMODES[args.match:sub(1, 1)] or VISUALMODES[args.match:sub(#args.match)]) then
+        -- we only care about mode change to/from visual mode
+        return
+    end
+
+    if self.recursion then
+        return
+    end
+    self.recursion = true
 
     local undotree = vim.fn.undotree()
     local undo_seq = undotree.seq_cur
@@ -404,7 +407,7 @@ function M.start(positions, regions, options)
         'CursorMoved',
         'CursorMovedI',
         'TextChangedI',
-        -- 'ModeChanged',
+        'ModeChanged',
         'WinEnter',
     }, {buffer=buffer, callback=function(args) multicursor_process_event(self, args) end})
 
