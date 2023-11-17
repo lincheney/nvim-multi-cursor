@@ -73,9 +73,8 @@ local function create_mark(pos, highlight, old_mark)
             end_col = math.min(right[2], #line),
             right_gravity = false,
             end_right_gravity = true,
-            virt_text = {{'', reverse and 'reverse' or ''}},
         }
-    )
+    ), reverse
 end
 
 local function create_cursor_highlight_mark(pos, old_mark)
@@ -106,11 +105,13 @@ vim.keymap.set('i', RECORD_POS_PLUG, function()
 end)
 
 local function make_cursor(position, region, curswant)
+    local region, reverse_region = reigon and create_mark(region, VISUAL_HIGHLIGHT)
     return {
         pos = create_cursor_highlight_mark(position),
         curswant = curswant,
         edit_region = create_mark(position, CHANGED_HIGHLIGHT),
-        region = region and create_mark(region, VISUAL_HIGHLIGHT),
+        region = region,
+        reverse_region = reverse_region,
         undo_pos = {},
         registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS),
         last_visual = record_marks{'<', '>'},
@@ -189,7 +190,7 @@ local function cursor_record(self, pos)
     -- record the visual range
     local region = get_visual_range()
     if region then
-        self.region = create_mark({region[1][1], region[1][2], region[2][1], region[2][2]}, VISUAL_HIGHLIGHT, self.region)
+        self.region, self.reverse_region = create_mark({region[1][1], region[1][2], region[2][1], region[2][2]}, VISUAL_HIGHLIGHT, self.region)
     elseif self.region then
         vim.api.nvim_buf_del_extmark(0, NAMESPACE, self.region)
         self.region = nil
@@ -209,7 +210,7 @@ local function cursor_restore(self, mode)
         -- reselect the visual region described in the mark
         local region_mark = get_mark(self.region, true)
         set_visual_range(region_mark, {region_mark[3].end_row, region_mark[3].end_col}, mode.mode)
-        if region_mark[3].virt_text[1][2] == 'reverse' then
+        if self.reverse_region then
             vim.cmd[[normal! o]]
         end
     end
