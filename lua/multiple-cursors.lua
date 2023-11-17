@@ -1,6 +1,5 @@
 local M = {}
 
-local utils = require('qianli.utils')
 local NAMESPACE = vim.api.nvim_create_namespace('multiple-cursors.nvim')
 local VISUALMODES = {['v']=true, ['V']=true, ['']=true}
 local DEFAULT_OPTS = {
@@ -16,6 +15,26 @@ local STATES = {}
 
 local function get_mark(id, details)
     return vim.api.nvim_buf_get_extmark_by_id(0, NAMESPACE, id, {details=details})
+end
+
+local function get_visual_range()
+    local mode = vim.api.nvim_get_mode().mode
+    if VISUALMODES[mode] then
+        local first = vim.fn.getpos('v')
+        local last = vim.api.nvim_win_get_cursor(0)
+        return {{first[2]-1, first[3]-1}, {last[1]-1, last[2]+1}}, mode
+    end
+end
+
+local function set_visual_range(first, last, mode)
+    -- reselect the visual region
+    vim.api.nvim_win_set_cursor(0, {first[1]+1, first[2]})
+    vim.cmd('normal! v')
+    vim.api.nvim_win_set_cursor(0, {last[1]+1, last[2]-1})
+    -- change to the correct visual mode
+    if mode and mode ~= 'v' then
+        vim.cmd('normal! '..mode)
+    end
 end
 
 local function create_mark(pos, highlight, old_mark)
@@ -110,7 +129,7 @@ local function real_cursor_record(self)
     pos = {pos[2]-1, pos[3]-1}
 
     -- save the visual range
-    self.region = utils.get_visual_range()
+    self.region = get_visual_range()
     -- move the real self mark first
     self.edit_region = create_mark(pos, CHANGED_HIGHLIGHT, self.edit_region)
     -- save the registers
@@ -129,7 +148,7 @@ local function real_cursor_restore(self, mode)
 
     -- restore the visual range
     if self.region then
-        utils.set_visual_range(self.region[1], self.region[2], mode.mode)
+        set_visual_range(self.region[1], self.region[2], mode.mode)
     end
 end
 
@@ -149,7 +168,7 @@ local function cursor_record(self, pos)
     self.pos = create_cursor_highlight_mark(pos, self.pos)
 
     -- record the visual range
-    local region = utils.get_visual_range()
+    local region = get_visual_range()
     if region then
         self.region = create_mark({region[1][1], region[1][2], region[2][1], region[2][2]}, VISUAL_HIGHLIGHT, self.region)
     elseif self.region then
@@ -166,7 +185,7 @@ local function cursor_restore(self, mode)
     if VISUALMODES[mode.mode] and self.region then
         -- reselect the visual region described in the mark
         local region_mark = get_mark(self.region, true)
-        utils.set_visual_range(region_mark, {region_mark[3].end_row, region_mark[3].end_col}, mode.mode)
+        set_visual_range(region_mark, {region_mark[3].end_row, region_mark[3].end_col}, mode.mode)
         if region_mark[3].virt_text[1][2] == 'reverse' then
             vim.cmd[[normal! o]]
         end
