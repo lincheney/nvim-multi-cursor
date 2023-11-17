@@ -57,7 +57,7 @@ local function create_cursor_highlight_mark(pos, old_mark)
         {
             id = old_mark,
             hl_group = CURSOR_HIGHLIGHT,
-            end_row = row,
+            end_row = pos[1],
             end_col = not past_end and pos[2]+1 or nil,
             virt_text = past_end and {{' ', CURSOR_HIGHLIGHT}} or nil,
             virt_text_pos = 'overlay',
@@ -180,7 +180,8 @@ local function cursor_play_keys(self, keys, undojoin, mode)
     cursor_restore(self, mode)
 
     -- execute the keys
-    vim.cmd((undojoin and 'undojoin | ' or '')..'normal '..keys)
+    vim.cmd((undojoin and 'undojoin | ' or '')..'silent! normal '..keys)
+
     cursor_record(self, mode.mode == 'i' and RECORDED_POS)
 end
 
