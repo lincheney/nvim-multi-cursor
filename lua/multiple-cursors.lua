@@ -16,6 +16,11 @@ local function get_mark(id, details)
     return vim.api.nvim_buf_get_extmark_by_id(0, NAMESPACE, id, {details=details})
 end
 
+local function getcurpos()
+    local pos = vim.fn.getcurpos()
+    return {pos[2]-1, pos[3]-1}, pos[5]-1
+end
+
 local function get_visual_range()
     local mode = vim.api.nvim_get_mode().mode
     if VISUALMODES[mode] then
@@ -47,6 +52,16 @@ end
 local function restore_marks(marks)
     for k, v in pairs(marks) do
         vim.api.nvim_buf_set_mark(0, k, v[1], v[2], {})
+    end
+end
+
+local function record_registers()
+    return vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
+end
+
+local function restore_registers(registers)
+    for i, reg in ipairs(registers) do
+        vim.fn.setreg(ALL_REGISTERS[i], reg)
     end
 end
 
@@ -105,7 +120,10 @@ vim.keymap.set('i', RECORD_POS_PLUG, function()
 end)
 
 local function make_cursor(position, region, curswant)
-    local region, reverse_region = reigon and create_mark(region, VISUAL_HIGHLIGHT)
+    local region, reverse_region
+    if region then
+        region, reverse_region = create_mark(region, VISUAL_HIGHLIGHT)
+    end
     return {
         pos = create_cursor_highlight_mark(position),
         curswant = curswant,
@@ -126,27 +144,29 @@ local function remove_cursor(self)
     end
 end
 
+local function cursor_set_pos(self, pos, highlight)
+    self.edit_region = create_mark(pos, highlight, self.edit_region)
+    if highlight then
+        self.pos = create_cursor_highlight_mark(pos, self.pos)
+    end
+end
+
 local function cursor_restore_undo_pos(self, undo_seq, highlight)
     local pos = self.undo_pos[undo_seq]
     if pos then
-        self.edit_region = create_mark(pos, CHANGED_HIGHLIGHT, self.edit_region)
+        cursor_set_pos(self, pos, highlight)
         self.curswant = pos[2]
-        if highlight then
-            self.pos = create_cursor_highlight_mark(pos, self.pos)
-        end
     end
     return self, pos
 end
 
 local function real_cursor_record(self)
-    local pos = vim.fn.getcurpos()
-    self.curswant = pos[5]-1
-    pos = {pos[2]-1, pos[3]-1}
-
+    -- save the cursor
+    local pos
+    pos, self.curswant = getcurpos()
+    cursor_set_pos(self, pos)
     -- save the visual range
     self.region = get_visual_range()
-    -- move the real self mark first
-    self.edit_region = create_mark(pos, CHANGED_HIGHLIGHT, self.edit_region)
     -- save the registers
     self.registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
     -- record the last visual area
@@ -154,38 +174,27 @@ local function real_cursor_record(self)
 end
 
 local function real_cursor_restore(self, mode)
-    -- get the new cursor pos from the mark
-    local mark = get_mark(self.edit_region, true)
-    vim.fn.setpos('.', {0, mark[3].end_row+1, mark[3].end_col+1, 0, self.curswant+1})
-
+    -- restore the last visual area
+    restore_marks(self.last_visual)
     -- restore the registers
-    for i = 1, #ALL_REGISTERS do
-        vim.fn.setreg(ALL_REGISTERS[i], self.registers[i])
-    end
-
+    restore_registers(self.registers)
     -- restore the visual range
     if self.region then
         set_visual_range(self.region[1], self.region[2], mode.mode)
     end
-
-    -- restore the last visual area
-    restore_marks(self.last_visual)
+    -- get the cursor pos from the mark
+    local mark = get_mark(self.edit_region, true)
+    vim.fn.setpos('.', {0, mark[3].end_row+1, mark[3].end_col+1, 0, self.curswant+1})
 end
 
 local function cursor_record(self, pos)
-    -- record registers
-    self.registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
-
     -- record the position
     if pos then
         self.curswant = pos[2]
     else
-        pos = vim.fn.getcurpos()
-        self.curswant = pos[5]-1
-        pos = {pos[2]-1, pos[3]-1}
+        pos, self.curswant = getcurpos()
     end
-    self.edit_region = create_mark(pos, CHANGED_HIGHLIGHT, self.edit_region)
-    self.pos = create_cursor_highlight_mark(pos, self.pos)
+    cursor_set_pos(self, pos, CHANGED_HIGHLIGHT)
 
     -- record the visual range
     local region = get_visual_range()
@@ -196,27 +205,31 @@ local function cursor_record(self, pos)
         self.region = nil
     end
 
+    -- record registers
+    self.registers = record_registers()
     -- record the last visual area
     self.last_visual = record_marks{'<', '>'}
 end
+
 local function cursor_restore(self, mode)
-    -- restore registers
-    for j = 1, #ALL_REGISTERS do
-        vim.fn.setreg(ALL_REGISTERS[j], self.registers[j])
-    end
-
-    -- restore the visual range
-    if VISUALMODES[mode.mode] and self.region then
-        -- reselect the visual region described in the mark
-        local region_mark = get_mark(self.region, true)
-        set_visual_range(region_mark, {region_mark[3].end_row, region_mark[3].end_col}, mode.mode)
-        if self.reverse_region then
-            vim.cmd[[normal! o]]
-        end
-    end
-
     -- restore the last visual area
     restore_marks(self.last_visual)
+    -- restore registers
+    restore_registers(self.registers)
+
+    -- restore the visual range
+    if VISUALMODES[mode.mode] then
+        if self.region then
+            local region_mark = get_mark(self.region, true)
+            set_visual_range(region_mark, {region_mark[3].end_row, region_mark[3].end_col}, mode.mode)
+            if self.reverse_region then
+                vim.cmd[[normal! o]]
+            end
+        else
+            -- don't know the region, fake it
+            vim.cmd('normal! '..mode.mode)
+        end
+    end
 
     -- go to the cursor
     local mark = get_mark(self.edit_region, true)
@@ -230,11 +243,6 @@ end
 local function cursor_play_keys(self, keys, undojoin, mode)
     -- get to normal mode
     vim.cmd(vim_escape('normal! <esc>'))
-
-    if VISUALMODES[mode.mode] and not self.region then
-        -- don't know the region, fake it
-        keys = mode.mode .. keys
-    end
 
     cursor_restore(self, mode)
 
@@ -362,9 +370,9 @@ local function multicursor_process_event(self, args)
         -- don't repeat undo/redo
         -- restore the cursor positions instead
         for i, cursor in ipairs(self.cursors) do
-            cursor_restore_undo_pos(cursor, undo_seq, true)
+            cursor_restore_undo_pos(cursor, undo_seq, CHANGED_HIGHLIGHT)
         end
-        local _, pos = cursor_restore_undo_pos(self.real_cursor, undo_seq, false)
+        local _, pos = cursor_restore_undo_pos(self.real_cursor, undo_seq)
         if pos then
             vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
         end
@@ -408,14 +416,13 @@ function M.start(positions, regions, options)
 
     local undotree = vim.fn.undotree()
 
-    local cursor = vim.fn.getcurpos()
-    local curswant = cursor[5] - 1
+    local cursor, curswant = getcurpos()
     local self = {
         buffer = buffer,
         register = options.register,
         cursors = {},
         real_cursor = {
-            edit_region = create_mark({cursor[2]-1, cursor[3]-1}, nil),
+            edit_region = create_mark(cursor),
             undo_pos = {},
             curswant = curswant,
         },
