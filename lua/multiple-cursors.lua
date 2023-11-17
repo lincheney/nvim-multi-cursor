@@ -258,7 +258,7 @@ local function multicursor_play_keys(self, keys, undojoin)
     vim.cmd('noautocmd call nvim_set_current_win('..scratch..')')
 
     for i, cursor in ipairs(self.cursors) do
-        cursor_play_keys(cursor, keys, undojoin, mode)
+        cursor_play_keys(cursor, keys, undojoin, self.mode)
     end
 
     -- teardown
@@ -269,7 +269,7 @@ local function multicursor_play_keys(self, keys, undojoin)
     -- reset to normal mode
     vim.cmd(vim_escape('normal! <esc>'))
 
-    real_cursor_restore(self.real_cursor)
+    real_cursor_restore(self.real_cursor, mode)
 end
 
 local function multicursor_record(self, undotree)
