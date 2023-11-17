@@ -263,7 +263,7 @@ local function multicursor_process_event(self, args)
 
     -- stop recording
     vim.cmd('normal! q')
-    local keys = vim.fn.getreg(REGISTER)
+    local keys = vim.fn.getreg(self.register)
     local edit_region = get_mark(self.real_cursor.edit_region, true)
 
     if args.event:match('^TextChanged') and self.undo_seq ~= undo_seq and (self.real_cursor.undo_pos[undo_seq] or undo_seq ~= undotree.seq_last) then
