@@ -128,7 +128,7 @@ local function cursor_record(self, pos)
     -- record the position
     pos = pos or vim.api.nvim_win_get_cursor(0)
     pos[1] = pos[1] - 1
-    self.edit_region = create_mark({pos[1]-1, pos[2]}, CHANGED_HIGHLIGHT, self.edit_region)
+    self.edit_region = create_mark(pos, CHANGED_HIGHLIGHT, self.edit_region)
     self.pos = create_cursor_highlight_mark(pos, self.pos)
 
     -- record the visual range
@@ -245,16 +245,17 @@ local function multicursor_record(self, undotree)
     end
 end
 
-local recursion = false
 local function multicursor_process_event(self, args)
-    if recursion then
+    if self.recursion then
         return
     end
-    recursion = true
+    self.recursion = true
 
-    if args.event:match('^CursorMoved') and vim.b.changedtick ~= self.changedtick then
+    local text_changed = args.event:match('^TextChanged')
+
+    if not text_changed and vim.b.changedtick ~= self.changedtick then
         -- wait for the TextChanged* instead
-        recursion = false
+        self.recursion = false
         return
     end
 
@@ -277,7 +278,7 @@ local function multicursor_process_event(self, args)
             vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
         end
 
-    elseif args.event:match('^TextChanged') and self.changes
+    elseif text_changed and self.changes
         and not keys:match('^g?[pP]$') and not keys:match('^".g?[gP]$') -- not pasting
         and vim.version.cmp(self.changes.start, self.changes.finish) < 0
         and vim.version.cmp(self.changes.start, {edit_region[1], edit_region[2]}) >= 0
@@ -305,7 +306,7 @@ local function multicursor_process_event(self, args)
     vim.cmd('normal! q'..self.register)
     -- macro moves the cursor, so move it back
     vim.api.nvim_win_set_cursor(0, pos)
-    recursion = false
+    self.recursion = false
 end
 
 function M.start(positions, regions, options)
@@ -365,7 +366,9 @@ function M.start(positions, regions, options)
     return self
 end
 
-function M.stop(buffer)
+function M.stop()
+    local buffer = vim.api.nvim_get_current_buf()
+
     if STATES[buffer] then
         vim.api.nvim_buf_clear_namespace(buffer, NAMESPACE, 0, -1)
         vim.cmd('normal! q')
