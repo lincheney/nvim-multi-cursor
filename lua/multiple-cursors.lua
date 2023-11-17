@@ -298,7 +298,10 @@ local function multicursor_process_event(self, args)
     local undo_seq = undotree.seq_cur
 
     -- stop recording
+    local pos = vim.fn.getcurpos()
     vim.cmd('normal! q')
+    -- macro moves the cursor, so move it back
+    vim.fn.setpos('.', pos)
     local keys = vim.fn.getreg(self.register)
     local edit_region = get_mark(self.real_cursor.edit_region, true)
 
