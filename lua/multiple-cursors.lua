@@ -267,7 +267,10 @@ local function multicursor_process_event(self, args)
     local keys = vim.fn.getreg(self.register)
     local edit_region = get_mark(self.real_cursor.edit_region, true)
 
-    if args.event:match('^TextChanged') and self.undo_seq ~= undo_seq and (self.real_cursor.undo_pos[undo_seq] or undo_seq ~= undotree.seq_last) then
+    if args.event == 'WinEnter' then
+        -- don't run these keys
+
+    elseif text_changed and self.undo_seq ~= undo_seq and (self.real_cursor.undo_pos[undo_seq] or undo_seq ~= undotree.seq_last) then
         -- don't repeat undo/redo
         -- restore the cursor positions instead
         for i, cursor in ipairs(self.cursors) do
@@ -343,6 +346,7 @@ function M.start(positions, regions, options)
         'CursorMovedI',
         'TextChangedI',
         -- 'ModeChanged',
+        'WinEnter',
     }, {buffer=buffer, callback=function(args) multicursor_process_event(self, args) end})
 
     vim.api.nvim_buf_attach(self.buffer, false, {
