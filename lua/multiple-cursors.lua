@@ -1,88 +1,193 @@
 local M = {}
 
+local utils = require('qianli.utils')
 local NAMESPACE = vim.api.nvim_create_namespace('multiple-cursors.nvim')
-local VISUALMODES = {'v', 'V', ''}
+local VISUALMODES = {['v']=true, ['V']=true, ['']=true}
+local DEFAULT_OPTS = {
+    register = 'y',
+}
+
 local VISUAL_HIGHLIGHT = 'MultiCursorVisual'
 local CHANGED_HIGHLIGHT = 'MultiCursorText'
 local CURSOR_HIGHLIGHT = 'MultiCursor'
 local REGISTER = 'm'
 local ALL_REGISTERS = vim.list_extend(vim.split("-/0123456789abcdefghijklmnopqrstuvwxyz", ''), {''})
-local teardowns = {}
+local STATES = {}
 
 local function get_mark(id, details)
     return vim.api.nvim_buf_get_extmark_by_id(0, NAMESPACE, id, {details=details})
 end
 
-local function create_marks(positions, highlight, old_marks)
-    local marks = {}
-    old_marks = old_marks or {}
-    for i, pos in ipairs(positions) do
-        local line = vim.api.nvim_buf_get_lines(0, pos[1], pos[1]+1, true)[1]
+local function create_mark(pos, highlight, old_mark)
+    local line = vim.api.nvim_buf_get_lines(0, pos[1], pos[1]+1, true)[1]
 
-        local left = {pos[1], pos[2]}
-        -- if right is not given, use same as left
-        local right = {pos[3] or pos[1], pos[4] or pos[2]}
-        local reverse = vim.version.cmp(left, right) > 0
-        if reverse then
-            left, right = right, left
-            left[2] = left[2] - 1
-            right[2] = right[2] + 1
-        end
-
-        table.insert(marks, vim.api.nvim_buf_set_extmark(
-            0, NAMESPACE,
-            left[1], math.min(left[2], #line-1),
-            {
-                id = old_marks[i],
-                hl_group = highlight,
-                end_row = right[1],
-                end_col = math.min(right[2], #line),
-                right_gravity = false,
-                end_right_gravity = true,
-                virt_text = {{'', reverse and 'reverse' or ''}},
-            }
-        ))
+    local left = {pos[1], pos[2]}
+    -- if right is not given, use same as left
+    local right = {pos[3] or pos[1], pos[4] or pos[2]}
+    local reverse = vim.version.cmp(left, right) > 0
+    if reverse then
+        left, right = right, left
+        left[2] = left[2] - 1
+        right[2] = right[2] + 1
     end
-    return marks
+
+    return vim.api.nvim_buf_set_extmark(
+        0, NAMESPACE,
+        left[1], math.min(left[2], #line-1),
+        {
+            id = old_mark,
+            hl_group = highlight,
+            end_row = right[1],
+            end_col = math.min(right[2], #line),
+            right_gravity = false,
+            end_right_gravity = true,
+            virt_text = {{'', reverse and 'reverse' or ''}},
+        }
+    )
 end
 
-local function create_cursor_highlight_marks(marks, old_marks)
-    local cursor_marks = {}
-    old_marks = old_marks or {}
-    for i, id in ipairs(marks) do
-        local mark = get_mark(id, true)
-        local row = mark[3].end_row
-        local col = mark[3].end_col
+local function create_cursor_highlight_mark(pos, old_mark)
+    local line = vim.api.nvim_buf_get_lines(0, pos[1], pos[1]+1, true)[1]
+    local past_end = pos[2] + 1 > #line
 
-        local line = vim.api.nvim_buf_get_lines(0, row, row+1, true)[1]
-        local past_end = col + 1 > #line
-
-        table.insert(cursor_marks, vim.api.nvim_buf_set_extmark(
-            0, NAMESPACE,
-            row,
-            past_end and col or math.min(col, #line-1),
-            {
-                id = old_marks[i],
-                hl_group = CURSOR_HIGHLIGHT,
-                end_row = row,
-                end_col = not past_end and col+1 or nil,
-                virt_text = past_end and {{' ', CURSOR_HIGHLIGHT}} or nil,
-                virt_text_pos = 'overlay',
-                right_gravity = true,
-                end_right_gravity = true,
-            }
-        ))
-    end
-    return cursor_marks
+    return vim.api.nvim_buf_set_extmark(
+        0, NAMESPACE,
+        pos[1],
+        past_end and pos[2] or math.min(pos[2], #line-1),
+        {
+            id = old_mark,
+            hl_group = CURSOR_HIGHLIGHT,
+            end_row = row,
+            end_col = not past_end and pos[2]+1 or nil,
+            virt_text = past_end and {{' ', CURSOR_HIGHLIGHT}} or nil,
+            virt_text_pos = 'overlay',
+            right_gravity = true,
+            end_right_gravity = true,
+        }
+    )
 end
 
 local RECORD_POS_PLUG = '<Plug>(multiple-cursors-record_pos)'
 local RECORDED_POS = nil
-map.i[RECORD_POS_PLUG] = function()
+vim.keymap.set('i', RECORD_POS_PLUG, function()
     RECORDED_POS = vim.api.nvim_win_get_cursor(0)
-end
-local function repeat_key(marks, region_marks, key, mode, registers, undojoin)
+end)
 
+local function make_cursor(position, region)
+    return {
+        pos = create_cursor_highlight_mark(position),
+        edit_region = create_mark(position, CHANGED_HIGHLIGHT),
+        region = region and create_mark(region, VISUAL_HIGHLIGHT),
+        undo_pos = {},
+        registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS),
+    }
+end
+
+local function cursor_restore_undo_pos(self, undo_seq, highlight)
+    local pos = self.undo_pos[undo_seq]
+    if pos then
+        self.edit_region = create_mark(pos, CHANGED_HIGHLIGHT, self.edit_region)
+        if not highlight then
+            self.pos = create_cursor_highlight_mark(pos, nil, self.pos)
+        end
+    end
+    return self, pos
+end
+
+local function real_cursor_record(cursor)
+    local pos = vim.api.nvim_win_get_cursor(0)
+
+    -- save the visual range
+    cursor.region = utils.get_visual_range()
+    -- move the real cursor mark first
+    cursor.edit_region = create_mark({pos[1]-1, pos[2]}, CHANGED_HIGHLIGHT, cursor.edit_region)
+    -- save the registers
+    cursor.registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
+end
+
+local function real_cursor_restore(self, mode)
+    -- get the new cursor pos from the mark
+    local mark = get_mark(self.edit_region, true)
+    vim.api.nvim_win_set_cursor(0, {mark[3].end_row+1, mark[3].end_col})
+
+    -- restore the registers
+    for i = 1, #ALL_REGISTERS do
+        vim.fn.setreg(ALL_REGISTERS[i], self.registers[i])
+    end
+
+    -- restore the visual range
+    if self.region then
+        utils.set_visual_range(self.region[1], self.region[2], mode.mode)
+    end
+end
+
+local function cursor_record(self, pos)
+    -- record registers
+    self.registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
+
+    -- record the position
+    pos = pos or vim.api.nvim_win_get_cursor(0)
+    pos[1] = pos[1] - 1
+    self.edit_region = create_mark({pos[1]-1, pos[2]}, CHANGED_HIGHLIGHT, self.edit_region)
+    self.pos = create_cursor_highlight_mark(pos, self.pos)
+
+    -- record the visual range
+    local region = utils.get_visual_range()
+    if region then
+        self.region = create_mark({region[1][1], region[1][2], region[2][1], region[2][2]}, VISUAL_HIGHLIGHT, self.region)
+    elseif self.region then
+        vim.api.nvim_buf_del_extmark(0, NAMESPACE, self.region)
+    end
+end
+local function cursor_restore(self, mode)
+    -- restore registers
+    for j = 1, #ALL_REGISTERS do
+        vim.fn.setreg(ALL_REGISTERS[j], self.registers[j])
+    end
+
+    -- restore the visual range
+    if VISUALMODES[mode.mode] and self.region then
+        -- reselect the visual region described in the mark
+        local region_mark = get_mark(self.region, true)
+        utils.set_visual_range(region_mark, {region_mark[3].end_row, region_mark[3].end_col}, mode.mode)
+        if region_mark[3].virt_text[1][2] == 'reverse' then
+            vim.cmd[[normal! o]]
+        end
+    end
+
+    -- go to theself
+    local mark = get_mark(self.edit_region, true)
+    vim.api.nvim_win_set_cursor(0, {mark[3].end_row+1, mark[3].end_col})
+end
+
+
+local function cursor_play_keys(self, keys, undojoin, mode)
+    -- get to normal mode
+    vim.cmd(vim_escape('normal! <esc>'))
+
+    -- use a plug to get the self pos *before* we leave insert mode
+    -- since exiting insert mode moves theself
+    RECORDED_POS = nil
+    if mode.mode == 'i' then
+        keys = keys .. vim_escape(RECORD_POS_PLUG)
+    end
+
+    if VISUALMODES[mode.mode] and not self.region then
+        -- don't know the region, fake it
+        keys = mode.mode .. keys
+    end
+
+    cursor_restore(self, mode)
+
+    -- execute the keys
+    vim.cmd((undojoin and 'undojoin | ' or '')..'normal '..keys)
+    cursor_record(self, mode.mode == 'i' and RECORDED_POS)
+end
+
+local function multicursor_play_keys(self, keys, undojoin)
+    real_cursor_record(self.real_cursor)
+
+    -- make scratch window to apply our changes in
     local scratch = vim.api.nvim_open_win(0, false, {
         relative='editor',
         row=0,
@@ -98,73 +203,24 @@ local function repeat_key(marks, region_marks, key, mode, registers, undojoin)
     local winhighlight = vim.wo.winhighlight
     vim.wo.winhighlight = 'NormalNC:Normal'
 
-    local new_mode = vim.api.nvim_get_mode()
-    if mode.mode == 'i' then
-        key = 'i' .. key
-    elseif mode.mode == 'R' then
-        key = 'R' .. key
-    elseif key:match('^%s') then
+    local mode = vim.api.nvim_get_mode()
+    if self.mode.mode == 'i' then
+        keys = 'i' .. keys
+    elseif self.mode.mode == 'R' then
+        keys = 'R' .. keys
+    elseif keys:match('^%s') then
         -- can't start with space, so prefix with 1?
-        key = '1' .. key
+        keys = '1' .. keys
     end
-
-    local new_cursors = {}
-    local new_regions = {}
 
     -- visual range seems to be lost with nvim_win_call()
     local window = vim.api.nvim_get_current_win()
     vim.cmd('noautocmd call nvim_set_current_win('..scratch..')')
 
-    for i, id in ipairs(marks) do
-        -- get to normal mode
-        vim.cmd(vim_escape('normal! <esc>'))
-
-        -- repeat the key at each spot
-        local mark = get_mark(id, true)
-
-        -- use a plug to get the cursor pos *before* we leave insert mode
-        -- since exiting insert mode moves the cursor
-        RECORDED_POS = nil
-        if new_mode.mode == 'i' then
-            key = key .. vim_escape(RECORD_POS_PLUG)
-        end
-
-        if vim.tbl_contains(VISUALMODES, mode.mode) then
-            if region_marks[i] then
-                -- reselect the visual region described in the mark
-                local region_mark = get_mark(region_marks[i], true)
-                utils.set_visual_range(region_mark, {region_mark[3].end_row, region_mark[3].end_col}, mode.mode)
-                if region_mark[3].virt_text[1][2] == 'reverse' then
-                    vim.cmd[[normal! o]]
-                end
-            else
-                -- don't know the region, fake it
-                key = mode.mode .. key
-            end
-        end
-
-        -- restore registers
-        for j = 1, #ALL_REGISTERS do
-            vim.fn.setreg(ALL_REGISTERS[j], registers[i][j])
-        end
-
-        -- go to the cursor
-        vim.api.nvim_win_set_cursor(0, {mark[3].end_row+1, mark[3].end_col})
-        -- execute the keys
-        vim.cmd((undojoin and 'undojoin | ' or '')..'normal '..key)
-
-        -- record registers
-        registers[i] = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
-
-        -- record the positions
-        local cursor = RECORDED_POS or vim.api.nvim_win_get_cursor(0)
-        cursor[1] = cursor[1] - 1
-        new_cursors[i] = cursor
-        local range = utils.get_visual_range()
-        if range then
-            new_regions[i] = {range[1][1], range[1][2], range[2][1], range[2][2]}
-        end
+    for i, cursor in ipairs(self.cursors) do
+        cursor_play_keys(cursor, keys, undojoin, mode)
     end
+
     -- teardown
     vim.cmd('noautocmd call nvim_set_current_win('..window..')')
     vim.api.nvim_win_close(scratch, true)
@@ -173,168 +229,150 @@ local function repeat_key(marks, region_marks, key, mode, registers, undojoin)
     -- reset to normal mode
     vim.cmd(vim_escape('normal! <esc>'))
 
-    return new_cursors, new_regions
+    real_cursor_restore(self.real_cursor)
+end
+
+local function multicursor_record(self, undotree)
+    self.undo_seq = undotree.seq_cur
+    self.changedtick = vim.b.changedtick
+    self.mode = vim.api.nvim_get_mode()
+    self.changes = nil
+
+    local pos = vim.api.nvim_win_get_cursor(0)
+    self.real_cursor.undo_pos[undotree.seq_cur] = {pos[1]-1, pos[2]}
+    for i, cursor in ipairs(self.cursors) do
+        cursor.undo_pos[undotree.seq_cur] = get_mark(cursor.pos)
+    end
+end
+
+local recursion = false
+local function multicursor_process_event(self, args)
+    if recursion then
+        return
+    end
+    recursion = true
+
+    if args.event:match('^CursorMoved') and vim.b.changedtick ~= self.changedtick then
+        -- wait for the TextChanged* instead
+        recursion = false
+        return
+    end
+
+    local undotree = vim.fn.undotree()
+    local undo_seq = undotree.seq_cur
+
+    -- stop recording
+    vim.cmd('normal! q')
+    local keys = vim.fn.getreg(REGISTER)
+    local edit_region = get_mark(self.real_cursor.edit_region, true)
+
+    if args.event:match('^TextChanged') and self.undo_seq ~= undo_seq and (self.real_cursor.undo_pos[undo_seq] or undo_seq ~= undotree.seq_last) then
+        -- don't repeat undo/redo
+        -- restore the cursor positions instead
+        for i, cursor in ipairs(self.cursors) do
+            cursor_restore_undo_pos(cursor, undo_seq, true)
+        end
+        local _, pos = cursor_restore_undo_pos(self.real_cursor, undo_seq, false)
+        if pos then
+            vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
+        end
+
+    elseif args.event:match('^TextChanged') and self.changes
+        and not keys:match('^g?[pP]$') and not keys:match('^".g?[gP]$') -- not pasting
+        and vim.version.cmp(self.changes.start, self.changes.finish) < 0
+        and vim.version.cmp(self.changes.start, {edit_region[1], edit_region[2]}) >= 0
+        and vim.version.cmp(self.changes.finish, {edit_region[3].end_row, edit_region[3].end_col}) <= 0
+    then
+        -- text changed within the mark region
+        -- so just grab the text out and copy it
+        local text = vim.api.nvim_buf_get_text(0, edit_region[1], edit_region[2], edit_region[3].end_row, edit_region[3].end_col, {})
+        for i, cursor in ipairs(self.cursors) do
+            local mark = get_mark(cursor.edit_region, true)
+            vim.api.nvim_buf_set_text(0, mark[1], mark[2], mark[3].end_row, mark[3].end_col, text)
+        end
+
+    elseif #keys > 0 then
+        -- is this undo the most recent one
+        local recent_change = undotree.seq_last == undotree.seq_cur
+        -- run the macro at each position
+        multicursor_play_keys(self, keys, recent_change and args.event:match('^TextChanged'))
+    end
+
+    multicursor_record(self, undotree)
+
+    local pos = vim.api.nvim_win_get_cursor(0)
+    -- start recording again
+    vim.cmd('normal! q'..self.register)
+    -- macro moves the cursor, so move it back
+    vim.api.nvim_win_set_cursor(0, pos)
+    recursion = false
 end
 
 function M.start(positions, regions, options)
-    M.stop()
-
-    options = vim.tbl_deep_extend('keep', options or {}, {
-        highlights = {
-            changed = CHANGED_HIGHLIGHT,
-            visual = VISUAL_HIGHLIGHT
-        }
-    })
-
     local buffer = vim.api.nvim_get_current_buf()
-    local cursor = vim.api.nvim_win_get_cursor(0)
+    M.stop(buffer)
+
+    options = vim.tbl_deep_extend('keep', options or {}, DEFAULT_OPTS)
+
     local undotree = vim.fn.undotree()
-    local last_undo_seq = undotree.seq_cur
-    local last_tick = vim.b.changedtick
-    local mode = vim.api.nvim_get_mode()
-    local registers = vim.tbl_map(function(x) return vim.tbl_map(vim.fn.getreg, ALL_REGISTERS) end, positions)
 
-    local undo_cursor_pos = {[last_undo_seq] = {cursor, positions}}
-    local marks = create_marks(positions, options.highlights.changed)
-    local cursor_marks = create_cursor_highlight_marks(marks)
-    local real_mark_id = create_marks({{cursor[1]-1, cursor[2]}}, options.highlights.cursor)[1]
-    local region_marks = create_marks(regions or {}, options.highlights.visual)
-    table.insert(teardowns, function() vim.api.nvim_buf_clear_namespace(0, NAMESPACE, 0, -1) end)
-
-    vim.cmd('normal! q'..REGISTER)
-    table.insert(teardowns, function() vim.cmd('normal! q') end)
-
-    local recursion = false
-    local changes = nil
-    local function processor(args)
-        if recursion then
-            return
-        end
-        recursion = true
-
-        if args.event:match('^CursorMoved') and vim.b.changedtick ~= last_tick then
-            -- wait for the TextChanged* instead
-            recursion = false
-            return
-        end
-
-        local new_cursor = vim.api.nvim_win_get_cursor(0)
-        local undotree = vim.fn.undotree()
-
-        -- stop recording
-        vim.cmd('normal! q')
-        local key = vim.fn.getreg(REGISTER)
-        local mark = get_mark(real_mark_id, true)
-
-        if args.event:match('^TextChanged') and last_undo_seq ~= undotree.seq_cur and (undo_cursor_pos[undotree.seq_cur] or undotree.seq_cur ~= undotree.seq_last) then
-            -- don't repeat undo/redo
-            local pos = undo_cursor_pos[undotree.seq_cur]
-            if pos then
-                new_cursor = pos[1]
-                marks = create_marks(pos[2], options.highlights.changed, marks)
-            end
-
-        elseif args.event:match('^TextChanged') and changes
-            and not key:match('^g?[pP]$') and not key:match('^".g?[gP]$') -- not pasting
-            and vim.version.cmp(changes.start, changes.finish) < 0
-            and vim.version.cmp(changes.start, {mark[1], mark[2]}) >= 0
-            and vim.version.cmp(changes.finish, {mark[3].end_row, mark[3].end_col}) <= 0
-        then
-            -- text changed within the mark region
-            -- so just grab the text out and copy it
-            local text = vim.api.nvim_buf_get_text(0, mark[1], mark[2], mark[3].end_row, mark[3].end_col, {})
-            for i, id in ipairs(marks) do
-                local mark = get_mark(id, true)
-                vim.api.nvim_buf_set_text(0, mark[1], mark[2], mark[3].end_row, mark[3].end_col, text)
-            end
-
-        else
-            -- run the macro at each position
-            if #key > 0 then
-                -- save the visual range
-                local range, visual_mode = utils.get_visual_range()
-                -- move the real cursor mark first
-                real_mark_id = create_marks({{new_cursor[1]-1, new_cursor[2]}}, options.highlights.cursor, {real_mark_id})[1]
-                -- save the registers
-                local new_registers = vim.tbl_map(vim.fn.getreg, ALL_REGISTERS)
-
-                -- is this undo the most recent one
-                local recent_change = undotree.seq_last == undotree.seq_cur
-                local new_positions, new_regions = repeat_key(marks, region_marks, key, mode, registers, recent_change and args.event:match('^TextChanged'))
-
-                -- get the new cursor pos from the mark
-                local real_mark = get_mark(real_mark_id, true)
-                new_cursor = {real_mark[3].end_row+1, real_mark[3].end_col}
-                -- move the marks
-                marks = create_marks(new_positions, options.highlights.changed, marks)
-
-                -- restore the registers
-                for i = 1, #ALL_REGISTERS do
-                    vim.fn.setreg(ALL_REGISTERS[i], new_registers[i])
-                end
-                if #new_regions > 0 then
-                    region_marks = create_marks(new_regions, options.highlights.visual, region_marks)
-                else
-                    for i, id in ipairs(region_marks) do
-                        vim.api.nvim_buf_del_extmark(0, NAMESPACE, id)
-                    end
-                end
-
-                -- restore the visual range
-                if range then
-                    utils.set_visual_range(range[1], range[2], visual_mode)
-                end
-            end
-        end
-
-        changes = nil
-        cursor_marks = create_cursor_highlight_marks(marks, cursor_marks)
-        undo_cursor_pos[undotree.seq_cur] = {new_cursor, vim.tbl_map(get_mark, cursor_marks)}
-        mode = vim.api.nvim_get_mode()
-        -- start recording again
-        vim.cmd('normal! q'..REGISTER)
-        -- macro moves the cursor, so move it back
-        vim.api.nvim_win_set_cursor(0, new_cursor)
-        last_tick = vim.b.changedtick
-        last_undo_seq = undotree.seq_cur
-        recursion = false
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local self = {
+        buffer = buffer,
+        register = options.register,
+        cursors = {},
+        real_cursor = {
+            edit_region = create_mark({cursor[1]-1, cursor[2]}, nil),
+            undo_pos = {}
+        },
+        done = false,
+    }
+    for i = 1, #positions do
+        table.insert(self.cursors, make_cursor(positions[i], regions and regions[i], options))
     end
 
-    local autocmd = vim.api.nvim_create_autocmd({
+    multicursor_record(self, undotree)
+    -- start recording
+    vim.cmd('normal! q' .. self.register)
+
+    self.autocmd = vim.api.nvim_create_autocmd({
         'TextChangedP',
         'TextChanged',
         'CursorMoved',
         'CursorMovedI',
         'TextChangedI',
         -- 'ModeChanged',
-    }, {buffer=buffer, callback=processor})
-    table.insert(teardowns, function() vim.api.nvim_del_autocmd(autocmd) end)
+    }, {buffer=buffer, callback=function(args) multicursor_process_event(self, args) end})
 
-    local detach = false
-    vim.api.nvim_buf_attach(buffer, false, {
+    vim.api.nvim_buf_attach(self.buffer, false, {
         on_bytes = function(type, bufnr, tick, start_row, start_col, offset, old_end_row, old_end_col, old_len, end_row, end_col, len)
-            if detach then
-                return detach
+            if self.detach then
+                return self.detach
             end
-            changes = {
+            self.changes = {
                 start = {start_row, start_col},
                 finish = {start_row+end_row, start_col+end_col},
             }
-            local mark = get_mark(real_mark_id, true)
+            local mark = get_mark(self.real_cursor.edit_region, true)
             if vim.version.cmp({mark[1], mark[2]}, {mark[3].end_row, mark[3].end_col}) == 0 and old_len ~= 0 then
                 -- this is an invalid change
-                changes.finish = {0, 0}
+                self.changes.finish = {0, 0}
             end
         end,
     })
-    table.insert(teardowns, function() detach = true end)
+
+    STATES[buffer] = self
+    return self
 end
 
-function M.stop()
-    for i, fn in ipairs(teardowns) do
-        fn()
+function M.stop(buffer)
+    if STATES[buffer] then
+        vim.api.nvim_buf_clear_namespace(buffer, NAMESPACE, 0, -1)
+        vim.cmd('normal! q')
+        vim.api.nvim_del_autocmd(STATES[buffer].autocmd)
+        STATES[buffer].done = true
+        STATES[buffer] = nil
     end
-    teardowns = {}
 end
 
 return M
