@@ -61,7 +61,6 @@ M._save_and_restore = {
         end,
         restore = function(self)
             local pos = M.get_pos(self)
-            pprint(pos)
             vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
             if self.curswant ~= pos[2] then
                 vim.fn.winrestview({curswant=self.curswant})

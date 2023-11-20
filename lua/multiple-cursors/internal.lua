@@ -45,6 +45,9 @@ function M.play_keys(self, keys, undojoin)
     -- since exiting insert mode moves theself
     if mode.mode == 'i' then
         keys = keys .. UTILS.vim_escape(CONSTANTS.RECORD_POS_PLUG)
+        -- why do i need to do this ...
+        -- o seems to break without this
+        keys = UTILS.vim_escape('a <bs><esc>')..keys
     end
 
     REAL_CURSOR.save_and_restore(self, function()
