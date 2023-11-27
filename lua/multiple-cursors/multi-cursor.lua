@@ -99,12 +99,22 @@ function M.save(self, undotree)
     -- check for overlaps
     local marks = vim.tbl_map(function(c) return UTILS.get_mark(c.pos) end, self.cursors)
     for i = #self.cursors, 1, -1 do
-        for j = 1, i-1 do
-            if (marks[i][1] == marks[j][1] and marks[i][2] == marks[j][2]) or (marks[i][1] == pos[1] and marks[i][2] == pos[2]) then
-                CURSOR.remove(self.cursors[i])
-                table.remove(self.cursors, i)
-                break
+        local overlap = false
+
+        if marks[i][1] == pos[1] and marks[i][2] == pos[2] then
+            overlap = true
+        else
+            for j = 1, i-1 do
+                if marks[i][1] == marks[j][1] and marks[i][2] == marks[j][2] then
+                    overlap = true
+                    break
+                end
             end
+        end
+
+        if overlap then
+            CURSOR.remove(self.cursors[i])
+            table.remove(self.cursors, i)
         end
     end
 
