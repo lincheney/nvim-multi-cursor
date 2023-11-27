@@ -142,6 +142,11 @@ function M.play_keys(self, keys, undojoin, mode)
     vim.cmd(UTILS.vim_escape('normal! <esc>'))
 
     M.restore_and_save(self, function()
+        -- if cursor is beyond end, append instead of insert
+        if keys:sub(1, 1) == 'i' and UTILS.get_mark(self.pos)[2] > vim.api.nvim_win_get_cursor(0)[2] then
+            keys = 'a' .. keys:sub(2)
+        end
+
         -- execute the keys
         vim.cmd((undojoin and 'undojoin | ' or '')..'silent! normal '..keys)
     end, mode)
