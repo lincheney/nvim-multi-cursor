@@ -96,4 +96,18 @@ function M.save_and_restore_cursor(callback)
     vim.fn.setpos('.', pos)
 end
 
+function M.wait_for_normal_mode(callback)
+    -- execute callback when switching to normal mode
+    local autocmd
+    autocmd = vim.api.nvim_create_autocmd('ModeChanged', {pattern='*:n', callback=function()
+        -- wait til next cycle because we may be temporarily switching as part of a mapping
+        vim.schedule(function()
+            if vim.api.nvim_get_mode().mode == 'n' then
+                vim.api.nvim_del_autocmd(autocmd)
+                callback()
+            end
+        end)
+    end})
+end
+
 return M
