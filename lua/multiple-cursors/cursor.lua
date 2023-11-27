@@ -64,7 +64,7 @@ M._save_and_restore = {
             end
 
             self.current_line = nil
-            if vim.api.nvim_get_mode().mode == 'i' and args.line:match('^%s+$') and pos[2] == #args.line then
+            if args.new_mode == 'i' and args.line:match('^%s+$') and pos[2] == #args.line then
                 self.current_line = args.line
                 vim.api.nvim_buf_set_lines(0, pos[1], pos[1]+1, true, {self.current_line})
             end
@@ -91,16 +91,16 @@ M._save_and_restore = {
             end
         end,
         restore = function(self, args)
-            if UTILS.is_visual(args.mode.mode) then
+            if UTILS.is_visual(args.old_mode) then
                 if self.visual then
                     local mark = UTILS.get_mark(self.visual, true)
-                    UTILS.set_visual_range(mark, {mark[3].end_row, mark[3].end_col}, args.mode.mode)
+                    UTILS.set_visual_range(mark, {mark[3].end_row, mark[3].end_col}, args.old_mode)
                     if self.reverse_region then
                         vim.cmd[[normal! o]]
                     end
                 else
                     -- don't know the visual range, fake it
-                    vim.cmd('normal! '..args.mode.mode)
+                    vim.cmd('normal! '..args.old_mode)
                 end
             end
         end,
@@ -136,7 +136,7 @@ M._save_and_restore = {
 
 local cursor_attrs = vim.tbl_keys(M._save_and_restore)
 
-function M.restore_and_save(self, cb, mode)
+function M.restore_and_save(self, cb, old_mode, new_mode)
     -- restore prev position etc
     for i = 1, #cursor_attrs do
         M._save_and_restore[cursor_attrs[i]].restore(self, {mode=mode})
@@ -147,14 +147,15 @@ function M.restore_and_save(self, cb, mode)
 
     for i = #cursor_attrs, 1, -1 do
         M._save_and_restore[cursor_attrs[i]].save(self, {
-            mode = mode,
+            new_mode = new_mode,
+            old_mode = old_mode,
             line = RECORDED_INSERT_MODE and RECORDED_INSERT_MODE[2],
             pos = RECORDED_INSERT_MODE and {RECORDED_INSERT_MODE[1][1]-1, RECORDED_INSERT_MODE[1][2]},
         })
     end
 end
 
-function M.play_keys(self, keys, undojoin, mode)
+function M.play_keys(self, keys, undojoin, old_mode, new_mode)
     -- get to normal mode
     vim.cmd(UTILS.vim_escape('normal! <esc>'))
 
@@ -166,7 +167,7 @@ function M.play_keys(self, keys, undojoin, mode)
 
         -- execute the keys
         vim.cmd((undojoin and 'undojoin | ' or '')..'silent! normal '..keys)
-    end, mode)
+    end, old_mode, new_mode)
 end
 
 function M.save_undo_pos(self, undo_seq, pos)

@@ -31,7 +31,7 @@ M._save_and_restore = {
         end,
         restore = function(self, args)
             if self.visual then
-                UTILS.set_visual_range(self.visual[1], self.visual[2], args.mode.mode)
+                UTILS.set_visual_range(self.visual[1], self.visual[2], args.old_mode)
             end
         end,
     },

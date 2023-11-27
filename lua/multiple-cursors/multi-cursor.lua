@@ -27,14 +27,13 @@ function M.remove(self)
 end
 
 
-function M.play_keys(self, keys, undojoin)
-    local mode = vim.api.nvim_get_mode()
+function M.play_keys(self, keys, undojoin, new_mode)
     -- remove nop
     keys = keys:gsub(CONSTANTS.NOP, '')
 
-    if self.mode.mode == 'i' then
+    if self.mode == 'i' then
         keys = 'i' .. keys
-    elseif self.mode.mode == 'R' then
+    elseif self.mode == 'R' then
         keys = 'R' .. keys
     elseif keys:match('^%s') then
         -- can't start with space, so prefix with 1?
@@ -43,11 +42,8 @@ function M.play_keys(self, keys, undojoin)
 
     -- use a plug to get the self pos *before* we leave insert mode
     -- since exiting insert mode moves the cursor
-    if mode.mode == 'i' then
+    if new_mode == 'i' then
         keys = keys .. UTILS.vim_escape(CONSTANTS.RECORD_PLUG)
-        -- why do i need to do this ...
-        -- o seems to break without this
-        keys = UTILS.vim_escape('a <bs><esc>')..keys
     end
 
     REAL_CURSOR.save_and_restore(self, function()
@@ -73,7 +69,7 @@ function M.play_keys(self, keys, undojoin)
         vim.cmd('noautocmd call nvim_set_current_win('..scratch..')')
 
         for i, cursor in ipairs(self.cursors) do
-            CURSOR.play_keys(cursor, keys, undojoin, self.mode)
+            CURSOR.play_keys(cursor, keys, undojoin, self.mode, new_mode)
         end
 
         -- teardown
@@ -90,7 +86,7 @@ end
 function M.save(self, undotree)
     self.undo_seq = undotree.seq_cur
     self.changedtick = vim.b.changedtick
-    self.mode = vim.api.nvim_get_mode()
+    self.mode = vim.api.nvim_get_mode().mode
     self.changes = nil
 
     local pos = vim.api.nvim_win_get_cursor(0)
