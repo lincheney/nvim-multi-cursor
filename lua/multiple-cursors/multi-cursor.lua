@@ -42,9 +42,9 @@ function M.play_keys(self, keys, undojoin)
     end
 
     -- use a plug to get the self pos *before* we leave insert mode
-    -- since exiting insert mode moves theself
+    -- since exiting insert mode moves the cursor
     if mode.mode == 'i' then
-        keys = keys .. UTILS.vim_escape(CONSTANTS.RECORD_POS_PLUG)
+        keys = keys .. UTILS.vim_escape(CONSTANTS.RECORD_PLUG)
         -- why do i need to do this ...
         -- o seems to break without this
         keys = UTILS.vim_escape('a <bs><esc>')..keys

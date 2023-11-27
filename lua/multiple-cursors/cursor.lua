@@ -3,9 +3,14 @@ local M = {}
 local UTILS = require('multiple-cursors.utils')
 local CONSTANTS = require('multiple-cursors.constants')
 
-local RECORDED_POS = nil
-vim.keymap.set('i', CONSTANTS.RECORD_POS_PLUG, function()
-    RECORDED_POS = vim.api.nvim_win_get_cursor(0)
+local RECORDED_INSERT_MODE = nil
+vim.keymap.set('i', CONSTANTS.RECORD_PLUG, function()
+    RECORDED_INSERT_MODE = {
+        -- record the cursor position as it will jump back after insert mode
+        vim.api.nvim_win_get_cursor(0),
+        -- record the line; indentation may reset
+        vim.api.nvim_get_current_line(),
+    }
 end)
 
 
@@ -57,6 +62,13 @@ M._save_and_restore = {
             else
                 pos, self.curswant = UTILS.getcurpos()
             end
+
+            self.current_line = nil
+            if vim.api.nvim_get_mode().mode == 'i' and args.line:match('^%s+$') and pos[2] == #args.line then
+                self.current_line = args.line
+                vim.api.nvim_buf_set_lines(0, pos[1], pos[1]+1, true, {self.current_line})
+            end
+
             M.set_pos(self, pos, CONSTANTS.CHANGED_HIGHLIGHT)
         end,
         restore = function(self)
@@ -119,6 +131,7 @@ M._save_and_restore = {
             end
         end,
     },
+
 }
 
 local cursor_attrs = vim.tbl_keys(M._save_and_restore)
@@ -129,11 +142,15 @@ function M.restore_and_save(self, cb, mode)
         M._save_and_restore[cursor_attrs[i]].restore(self, {mode=mode})
     end
 
-    RECORDED_POS = nil
+    RECORDED_INSERT_MODE = nil
     cb()
 
     for i = #cursor_attrs, 1, -1 do
-        M._save_and_restore[cursor_attrs[i]].save(self, {mode=mode, pos=RECORDED_POS and {RECORDED_POS[1]-1, RECORDED_POS[2]}})
+        M._save_and_restore[cursor_attrs[i]].save(self, {
+            mode = mode,
+            line = RECORDED_INSERT_MODE and RECORDED_INSERT_MODE[2],
+            pos = RECORDED_INSERT_MODE and {RECORDED_INSERT_MODE[1][1]-1, RECORDED_INSERT_MODE[1][2]},
+        })
     end
 end
 
