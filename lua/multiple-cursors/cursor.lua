@@ -139,7 +139,10 @@ local cursor_attrs = vim.tbl_keys(M._save_and_restore)
 function M.restore_and_save(self, cb, old_mode, new_mode)
     -- restore prev position etc
     for i = 1, #cursor_attrs do
-        M._save_and_restore[cursor_attrs[i]].restore(self, {mode=mode})
+        M._save_and_restore[cursor_attrs[i]].restore(self, {
+            new_mode = new_mode,
+            old_mode = old_mode,
+        })
     end
 
     RECORDED_INSERT_MODE = nil
