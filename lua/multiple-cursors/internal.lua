@@ -114,8 +114,8 @@ function M.start(positions, visuals, options)
 
     vim.api.nvim_buf_attach(state.buffer, false, {
         on_bytes = function(type, bufnr, tick, start_row, start_col, offset, old_end_row, old_end_col, old_len, end_row, end_col, len)
-            if state.detach then
-                return state.detach
+            if state.done then
+                return state.done
             end
             state.changes = {
                 start = {start_row, start_col},
