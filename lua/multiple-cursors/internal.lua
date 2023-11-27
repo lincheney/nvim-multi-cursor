@@ -1,7 +1,7 @@
 local M = {}
 
 local UTILS = require('multiple-cursors.utils')
-local INTERNAL = require('multiple-cursors.internal')
+local MULTI_CURSOR = require('multiple-cursors.multi-cursor')
 
 local DEFAULT_OPTS = {
     register = 'y',
@@ -59,7 +59,7 @@ local function process_event(state, args)
     elseif text_changed and state.undo_seq ~= undo_seq and (state.real_cursor.undo_pos[undo_seq] or undo_seq ~= undotree.seq_last) then
         -- don't repeat undo/redo
         -- restore the cursor positions instead
-        INTERNAL.restore_undo_pos(state, undo_seq)
+        MULTI_CURSOR.restore_undo_pos(state, undo_seq)
 
     elseif text_changed and state.changes
         and not keys:match('^g?[pP]$') and not keys:match('^".g?[gP]$') -- not pasting
@@ -79,10 +79,10 @@ local function process_event(state, args)
         -- is this undo the most recent one
         local recent_change = undotree.seq_last == undotree.seq_cur
         -- run the macro at each position
-        INTERNAL.play_keys(state, keys, recent_change and args.event:match('^TextChanged'))
+        MULTI_CURSOR.play_keys(state, keys, recent_change and args.event:match('^TextChanged'))
     end
 
-    INTERNAL.save(state, undotree)
+    MULTI_CURSOR.save(state, undotree)
 
     -- start recording again
     -- macro moves the cursor, so move it back
@@ -98,7 +98,7 @@ function M.start(positions, visuals, options)
 
     options = vim.tbl_deep_extend('keep', options or {}, DEFAULT_OPTS)
 
-    local state = INTERNAL.make(buffer, positions, visuals, options)
+    local state = MULTI_CURSOR.make(buffer, positions, visuals, options)
     -- start recording
     vim.cmd('normal! q' .. state.register)
 
@@ -136,7 +136,7 @@ end
 function M.stop()
     local buffer = vim.api.nvim_get_current_buf()
     if STATES[buffer] then
-        INTERNAL.remove(STATES[buffer])
+        MULTI_CURSOR.remove(STATES[buffer])
         vim.cmd('normal! q')
         STATES[buffer] = nil
     end
