@@ -44,9 +44,7 @@ function M.play_keys(self, keys, undojoin, new_mode)
 
     -- use a plug to get the self pos *before* we leave insert mode
     -- since exiting insert mode moves the cursor
-    if new_mode == 'i' then
-        keys = keys .. UTILS.vim_escape(CONSTANTS.RECORD_PLUG)
-    end
+    keys = keys .. UTILS.vim_escape(CONSTANTS.RECORD_PLUG)
 
     REAL_CURSOR.save_and_restore(self, function()
 

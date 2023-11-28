@@ -4,6 +4,7 @@ local UTILS = require('multiple-cursors.utils')
 local CONSTANTS = require('multiple-cursors.constants')
 
 local RECORDED_INSERT_MODE = nil
+vim.keymap.set('', CONSTANTS.RECORD_PLUG, '')
 vim.keymap.set('i', CONSTANTS.RECORD_PLUG, function()
     RECORDED_INSERT_MODE = {
         -- record the cursor position as it will jump back after insert mode
