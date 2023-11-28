@@ -65,7 +65,7 @@ M._save_and_restore = {
             end
 
             self.current_line = nil
-            if args.new_mode == 'i' and args.line:match('^%s+$') and pos[2] == #args.line then
+            if args.line and args.new_mode == 'i' and args.line:match('^%s+$') and pos[2] == #args.line then
                 self.current_line = args.line
                 vim.api.nvim_buf_set_lines(0, pos[1], pos[1]+1, true, {self.current_line})
             end

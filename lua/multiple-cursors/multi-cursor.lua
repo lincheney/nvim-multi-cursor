@@ -81,6 +81,8 @@ function M.play_keys(self, keys, undojoin, new_mode)
         vim.cmd(UTILS.vim_escape('normal! <esc>'))
 
     end, mode)
+
+    REAL_CURSOR._save_and_restore.position.save(self.real_cursor)
 end
 
 function M.save(self, undotree)
