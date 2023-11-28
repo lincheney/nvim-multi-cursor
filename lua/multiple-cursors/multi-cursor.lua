@@ -22,7 +22,9 @@ end
 
 function M.remove(self)
     vim.api.nvim_buf_clear_namespace(self.buffer, CONSTANTS.NAMESPACE, 0, -1)
-    vim.api.nvim_del_autocmd(self.autocmd)
+    if self.autocmd then
+        vim.api.nvim_del_autocmd(self.autocmd)
+    end
     self.done = true
 end
 

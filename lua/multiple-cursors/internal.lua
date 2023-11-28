@@ -116,6 +116,11 @@ function M.start(positions, visuals, options)
     options = vim.tbl_deep_extend('keep', options or {}, DEFAULT_OPTS)
 
     local state = MULTI_CURSOR.make(buffer, positions, visuals, options)
+    if #state.cursors == 0 then
+        MULTI_CURSOR.remove(state)
+        return
+    end
+
     -- start recording
     vim.cmd('normal! q' .. state.register)
 
