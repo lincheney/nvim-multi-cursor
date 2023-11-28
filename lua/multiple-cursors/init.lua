@@ -90,7 +90,7 @@ function M.start_at_regex(regex, replace, range)
     end
     vim.cmd[[nohlsearch]]
 
-    local index = 1
+    local jumpto = nil
     -- get all substitute matches
     local positions = {}
     local visuals = {}
@@ -107,13 +107,14 @@ function M.start_at_regex(regex, replace, range)
             table.insert(visuals, {start[1], start[2], finish[1], finish[2]})
         end
 
-        if vim.version.cmp(start, cursor) <= 0 and vim.version.cmp(cursor, finish) < 0 then
-            index = i
+        if vim.version.cmp(cursor, positions[i]) <= 0 and (not jumpto or vim.version.cmp(positions[i], jumpto) < 0) then
+            jumpto = positions[i]
         end
     end
+    jumpto = jumpto or positions[1]
 
     if replace then
-        vim.api.nvim_win_set_cursor(0, {cursor[1]+1, cursor[2]})
+        vim.api.nvim_win_set_cursor(0, {jumpto[1]+1, jumpto[2]})
         M.start(positions)
         vim.cmd[[startinsert]]
         utils.wait_for_normal_mode(M.stop)
