@@ -10,7 +10,7 @@ function M.stop(...)
     return require(NAME..'.internal').stop(...)
 end
 
-function M.visual_block_insert()
+function M.start_on_visual()
     local utils = require(NAME..'.utils')
 
     local range = utils.get_visual_range()
@@ -27,6 +27,11 @@ function M.visual_block_insert()
     end
 
     M.start(positions)
+end
+
+function M.visual_block_insert()
+    local utils = require(NAME..'.utils')
+    M.start_on_visual_block()
     vim.api.nvim_feedkeys(utils.vim_escape('<esc>i'), 't', true)
     utils.wait_for_normal_mode(M.stop)
 end
