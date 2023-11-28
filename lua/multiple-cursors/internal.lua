@@ -28,9 +28,9 @@ local function process_event(state, args)
         if not UTILS.is_visual(from) then
             -- just remove the visual ranges instead of playing the macro
             for i, cursor in ipairs(state.cursors) do
-                if cursor.region then
-                    local mark = UTILS.get_mark(cursor.region, true)
-                    cursor.region = UTILS.create_mark({mark[1], mark[2], mark[3].end_row, mark[3].end_col}, nil, cursor.region)
+                if cursor.visual then
+                    local mark = UTILS.get_mark(cursor.visual, true)
+                    cursor.visual = UTILS.create_mark({mark[1], mark[2], mark[3].end_row, mark[3].end_col}, nil, cursor.visual)
                 end
             end
             return
