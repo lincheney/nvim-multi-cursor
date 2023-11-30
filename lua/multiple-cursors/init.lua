@@ -132,13 +132,13 @@ vim.api.nvim_create_user_command(
             last_pos = last_pos or vim.api.nvim_win_get_cursor(0)
             vim.schedule(function()
                 local regex = opts.args
-                if opts.args == '' then
-                    opts.args = vim.fn.getreg('/')
+                if regex == '' then
+                    regex = vim.fn.getreg('/')
                 end
 
                 -- restore the cursor
-                vim.fn.search(opts.args, 'cwz')
-                vim.fn.setreg('/', opts.args)
+                vim.fn.search(regex, 'cwz')
+                vim.fn.setreg('/', regex)
                 vim.o.hlsearch = true
                 vim.cmd('redraw!')
                 vim.api.nvim_win_set_cursor(0, last_pos)
