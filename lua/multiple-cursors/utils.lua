@@ -57,7 +57,7 @@ function M.create_mark(pos, highlight, id)
 
     return vim.api.nvim_buf_set_extmark(
         0, CONSTANTS.NAMESPACE,
-        left[1], math.min(left[2], #line-1),
+        left[1], math.min(left[2], #line),
         {
             id = id,
             hl_group = highlight,
