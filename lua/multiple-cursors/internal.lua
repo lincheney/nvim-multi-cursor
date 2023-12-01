@@ -18,14 +18,10 @@ local function process_event(state, args)
     end
 
     if args.event == 'ModeChanged' then
-        local to = args.match:sub(1, 1)
-        local from = args.match:sub(#args.match)
-        if not (UTILS.is_visual(to) or UTILS.is_visual(from)) then
-            -- we only care about mode change to/from visual mode
-            return
-        end
+        local from = args.match:sub(1, 1)
+        local to = args.match:sub(#args.match)
 
-        if not UTILS.is_visual(from) then
+        if UTILS.is_visual(from) and not UTILS.is_visual(to) then
             -- just remove the visual ranges instead of playing the macro
             for i, cursor in ipairs(state.cursors) do
                 if cursor.visual then
@@ -33,6 +29,13 @@ local function process_event(state, args)
                     cursor.visual = UTILS.create_mark({mark[1], mark[2], mark[3].end_row, mark[3].end_col}, nil, cursor.visual)
                 end
             end
+            return
+
+        elseif UTILS.is_visual(from) or UTILS.is_visual(to) then
+            -- we only care about mode change to/from visual mode
+        elseif state.mode ~= 'i' and to == 'i' then
+            -- or to insert mode
+        else
             return
         end
     end

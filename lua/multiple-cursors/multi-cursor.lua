@@ -44,7 +44,7 @@ function M.play_keys(self, keys, undojoin, new_mode)
     keys = keys:gsub(CONSTANTS.NOP, '')
 
     if self.mode == 'i' then
-        keys = 'i' .. keys
+        keys = 'i' .. UTILS.vim_escape(CONSTANTS.RESTORE_PLUG) .. keys
     elseif self.mode == 'R' then
         keys = 'R' .. keys
     elseif keys:match('^%s') then
@@ -55,8 +55,9 @@ function M.play_keys(self, keys, undojoin, new_mode)
     -- use a plug to get the self pos *before* we leave insert mode
     -- since exiting insert mode moves the cursor
     keys = keys .. UTILS.vim_escape(CONSTANTS.RECORD_PLUG)
+    keys = keys .. UTILS.vim_escape('<esc>')
 
-    REAL_CURSOR.save_and_restore(self, function()
+    REAL_CURSOR.save_and_restore(self.real_cursor, function()
 
         -- make scratch window to apply our changes in
         local scratch = vim.api.nvim_open_win(0, false, {
@@ -92,7 +93,22 @@ function M.play_keys(self, keys, undojoin, new_mode)
 
     end, mode)
 
-    REAL_CURSOR._save_and_restore.position.save(self.real_cursor)
+    local pos = REAL_CURSOR._save_and_restore.position.save(self.real_cursor)
+    if new_mode == 'i' then
+        if self.mode ~= 'i' then
+            self.real_cursor.insert_start = UTILS.create_mark(pos, nil, self.real_cursor.insert_start)
+        else
+            if not self.real_cursor.insert_start then
+                self.real_cursor.insert_start = UTILS.create_mark(UTILS.get_mark(self.real_cursor.edit_region), nil)
+            end
+            local start = UTILS.get_mark(self.real_cursor.insert_start)
+            vim.api.nvim_win_set_cursor(0, {start[1]+1, start[2]})
+        end
+        -- restart the insert mode
+        vim.cmd(UTILS.vim_escape('normal! i<esc>'))
+        vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
+    end
+
 end
 
 function M.save(self, undotree)

@@ -9,6 +9,7 @@ function M.make()
         edit_region = UTILS.create_mark(pos),
         undo_pos = {},
         curswant = curswant,
+        real = true,
     }
 end
 
@@ -18,6 +19,7 @@ M._save_and_restore = {
             local pos
             pos, self.curswant = UTILS.getcurpos()
             CURSOR.set_pos(self, pos)
+            return pos
         end,
         restore = function(self)
             local pos = CURSOR.get_pos(self)

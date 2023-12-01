@@ -13,6 +13,15 @@ vim.keymap.set('i', CONSTANTS.RECORD_PLUG, function()
         vim.api.nvim_get_current_line(),
     }
 end)
+vim.keymap.set('i', CONSTANTS.RESTORE_PLUG, function()
+    if RECORDED_INSERT_MODE then
+        vim.api.nvim_win_set_cursor(0, {RECORDED_INSERT_MODE[1][1], RECORDED_INSERT_MODE[1][2]})
+        if RECORDED_INSERT_MODE[1][3] then
+            vim.fn.winrestview({curswant=RECORDED_INSERT_MODE[1][3]})
+        end
+        RECORDED_INSERT_MODE = nil
+    end
+end)
 
 
 function M.make(pos, visual, curswant)
@@ -36,6 +45,9 @@ end
 function M.remove(self)
     vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.pos)
     vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.edit_region)
+    if self.insert_start then
+        vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.insert_start)
+    end
     if self.visual then
         vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.visual)
     end
@@ -70,13 +82,31 @@ M._save_and_restore = {
                 vim.api.nvim_buf_set_lines(0, pos[1], pos[1]+1, true, {self.current_line})
             end
 
+            if args.old_mode ~= 'i' and args.new_mode == 'i' then
+                self.insert_start = UTILS.create_mark(pos, nil, self.insert_start)
+            elseif args.old_mode == 'i' and args.new_mode ~= 'i' then
+                vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.insert_start)
+                self.insert_start = nil
+            end
+
             M.set_pos(self, pos, CONSTANTS.CHANGED_HIGHLIGHT)
         end,
-        restore = function(self)
+        restore = function(self, args)
             local pos = M.get_pos(self)
-            vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
-            if self.curswant ~= pos[2] then
-                vim.fn.winrestview({curswant=self.curswant})
+
+            if not self.real and args.old_mode == 'i' then
+                if not self.insert_start then
+                    self.insert_start = UTILS.create_mark(UTILS.get_mark(self.edit_region), nil)
+                end
+                local start = UTILS.get_mark(self.insert_start)
+                vim.api.nvim_win_set_cursor(0, {start[1]+1, start[2]})
+                RECORDED_INSERT_MODE = {{pos[1]+1, pos[2], self.curswant ~= pos[2] and self.curswant}}
+
+            else
+                vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
+                if self.curswant ~= pos[2] then
+                    vim.fn.winrestview({curswant=self.curswant})
+                end
             end
         end,
     },
@@ -138,6 +168,8 @@ M._save_and_restore = {
 local cursor_attrs = vim.tbl_keys(M._save_and_restore)
 
 function M.restore_and_save(self, cb, old_mode, new_mode)
+    RECORDED_INSERT_MODE = nil
+
     -- restore prev position etc
     for i = 1, #cursor_attrs do
         M._save_and_restore[cursor_attrs[i]].restore(self, {
@@ -146,7 +178,6 @@ function M.restore_and_save(self, cb, old_mode, new_mode)
         })
     end
 
-    RECORDED_INSERT_MODE = nil
     cb()
 
     for i = #cursor_attrs, 1, -1 do
@@ -164,11 +195,6 @@ function M.play_keys(self, keys, undojoin, old_mode, new_mode)
     vim.cmd(UTILS.vim_escape('normal! <esc>'))
 
     M.restore_and_save(self, function()
-        -- if cursor is beyond end, append instead of insert
-        if keys:sub(1, 1) == 'i' and UTILS.get_mark(self.pos)[2] > vim.api.nvim_win_get_cursor(0)[2] then
-            keys = 'a' .. keys:sub(2)
-        end
-
         -- execute the keys
         vim.cmd((undojoin and 'undojoin | ' or '')..'silent! normal '..keys)
     end, old_mode, new_mode)
