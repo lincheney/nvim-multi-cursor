@@ -76,24 +76,8 @@ local function process_event(state, args)
         end
 
     elseif #keys > 0 then
-
         -- is this undo the most recent one
         local recent_change = (undotree.seq_last == undotree.seq_cur) and args.event:match('^TextChanged')
-
-        if keys:match('o$') and state.changes
-            and state.changes.start[1]+1 == state.changes.finish[1]
-            and state.changes.start[2] == 0
-            and state.changes.finish[2] == 0
-        then
-            -- o behaves strangely, so we need to simulate it
-            -- do everything but o
-            keys = keys:gsub('o$', '')
-            MULTI_CURSOR.play_keys(state, keys, recent_change, 'n')
-            state.mode = 'n'
-            -- then do a fake o
-            keys = UTILS.vim_escape('a<end><cr>')
-        end
-
         -- run the macro at each position
         local mode = vim.api.nvim_get_mode().mode
         MULTI_CURSOR.play_keys(state, keys, recent_change, mode)

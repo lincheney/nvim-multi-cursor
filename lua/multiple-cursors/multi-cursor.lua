@@ -12,7 +12,15 @@ function M.make(buffer, positions, visuals, options)
         cursors = {},
         real_cursor = REAL_CURSOR.make(),
         done = false,
+
+        autoindent = vim.bo.autoindent,
+        indentkeys = vim.bo.indentkeys,
     }
+
+    -- https://github.com/neovim/neovim/issues/26326
+    vim.bo.autoindent = false
+    vim.bo.indentkeys = ''
+
     for i = 1, #positions do
         table.insert(self.cursors, CURSOR.make(positions[i], visuals and visuals[i], self.real_cursor.curswant))
     end
@@ -25,6 +33,8 @@ function M.remove(self)
     if self.autocmd then
         vim.api.nvim_del_autocmd(self.autocmd)
     end
+    vim.bo.autoindent = self.autoindent
+    vim.bo.indentkeys = self.indentkeys
     self.done = true
 end
 
