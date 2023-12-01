@@ -13,6 +13,13 @@ function M.make()
     }
 end
 
+function M.remove(self)
+    vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.edit_region)
+    if self.insert_start then
+        vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.insert_start)
+    end
+end
+
 M._save_and_restore = {
     position = {
         save = function(self)

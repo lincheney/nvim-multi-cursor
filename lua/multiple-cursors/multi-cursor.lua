@@ -33,6 +33,10 @@ function M.remove(self)
     if self.autocmd then
         vim.api.nvim_del_autocmd(self.autocmd)
     end
+    for i, cursor in ipairs(self.cursors) do
+        CURSOR.remove(cursor)
+    end
+    REAL_CURSOR.remove(self.real_cursor)
     vim.bo.autoindent = self.autoindent
     vim.bo.indentkeys = self.indentkeys
     self.done = true
