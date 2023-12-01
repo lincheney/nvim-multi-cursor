@@ -31,7 +31,7 @@ end
 
 function M.visual_block_insert()
     local utils = require(NAME..'.utils')
-    M.start_on_visual_block()
+    M.start_on_visual()
     vim.api.nvim_feedkeys(utils.vim_escape('<esc>i'), 't', true)
     utils.wait_for_normal_mode(M.stop)
 end
