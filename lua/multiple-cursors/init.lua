@@ -30,21 +30,26 @@ function M.start_on_visual()
     end
 
     M.start(positions)
+    return true
 end
 
 function M.visual_block_insert()
     local utils = require(NAME..'.utils')
-    M.start_on_visual()
-    vim.api.nvim_feedkeys(utils.vim_escape('<esc>i'), 't', true)
-    utils.wait_for_normal_mode(M.stop)
+    if M.start_on_visual() then
+        vim.api.nvim_feedkeys(utils.vim_escape('<esc>i'), 't', true)
+        utils.wait_for_normal_mode(M.stop)
+    end
 end
 
 function M.visual_block_append()
     local utils = require(NAME..'.utils')
 
+    local range = utils.get_visual_range()
+    if not range then
+        return
+    end
     local pos, curswant = utils.getcurpos()
     local end_of_line = (curswant == vim.v.maxcol - 1)
-    local range = utils.get_visual_range()
 
     local positions = {}
     local col = range[2][2] - 1
