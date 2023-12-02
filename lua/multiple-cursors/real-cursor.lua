@@ -2,6 +2,7 @@ local M = {}
 
 local UTILS = require('multiple-cursors.utils')
 local CURSOR = require('multiple-cursors.cursor')
+local CONSTANTS = require('multiple-cursors.constants')
 
 function M.make()
     local pos, curswant = UTILS.getcurpos()
