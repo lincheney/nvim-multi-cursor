@@ -29,6 +29,8 @@ local function process_event(state, args)
                     cursor.visual = UTILS.create_mark({mark[1], mark[2], mark[3].end_row, mark[3].end_col}, nil, cursor.visual)
                 end
             end
+
+            MULTI_CURSOR.save(state, vim.fn.undotree())
             return
 
         elseif UTILS.is_visual(from) or UTILS.is_visual(to) then
