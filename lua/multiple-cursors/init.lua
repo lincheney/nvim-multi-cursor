@@ -14,6 +14,9 @@ function M.start_on_visual()
     local utils = require(NAME..'.utils')
 
     local range = utils.get_visual_range()
+    if not range then
+        return
+    end
     local col = range[2][2] - 1
     local first = math.min(range[1][1], range[2][1])
     local last = math.max(range[1][1], range[2][1])
