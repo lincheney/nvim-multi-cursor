@@ -24,12 +24,16 @@ end
 M._save_and_restore = {
     position = {
         save = function(self)
-            local pos
-            pos, self.curswant = UTILS.getcurpos()
-            CURSOR.set_pos(self, pos)
-            return pos
+            self.curpos, self.curswant = UTILS.getcurpos()
+            CURSOR.set_pos(self, self.curpos)
+            return self.curpos
         end,
         restore = function(self)
+            -- sometimes the mark disappears ...
+            if #UTILS.get_mark(self.edit_region) == 0 then
+                CURSOR.set_pos(self, self.curpos)
+            end
+
             local pos = CURSOR.get_pos(self)
             vim.fn.setpos('.', {0, pos[1]+1, pos[2]+1, 0, self.curswant+1})
         end,
@@ -37,11 +41,11 @@ M._save_and_restore = {
 
     visual = {
         save = function(self)
-            self.visual = UTILS.get_visual_range()
+            self.visual = {UTILS.get_visual_range()}
         end,
         restore = function(self, args)
-            if self.visual then
-                UTILS.set_visual_range(self.visual[1], self.visual[2], args.old_mode)
+            if #self.visual > 0 then
+                UTILS.set_visual_range(self.visual[1][1], self.visual[1][2], self.visual[2])
             end
         end,
     },

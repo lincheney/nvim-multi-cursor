@@ -43,13 +43,14 @@ end
 
 function M.visual_block_append()
     local utils = require(NAME..'.utils')
+    local constants = require(NAME..'.constants')
 
     local range = utils.get_visual_range()
     if not range then
         return
     end
     local pos, curswant = utils.getcurpos()
-    local end_of_line = (curswant == vim.v.maxcol - 1)
+    local end_of_line = (curswant == constants.EOL)
 
     local positions = {}
     local col = range[2][2] - 1

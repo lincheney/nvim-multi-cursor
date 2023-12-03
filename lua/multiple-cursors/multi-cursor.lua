@@ -98,9 +98,19 @@ function M.play_keys(self, keys, undojoin, new_mode)
 
     end, mode)
 
-    local pos = REAL_CURSOR._save_and_restore.position.save(self.real_cursor)
-    if new_mode == 'i' then
-        if self.mode ~= 'i' then
+    REAL_CURSOR._save_and_restore.position.save(self.real_cursor)
+end
+
+function M.resume_recording(self, old_mode)
+    vim.cmd('normal! q'..self.register)
+
+    -- macro moves cursor, so move it back
+    REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
+
+    -- restore the mode as well
+    if self.mode == 'i' then
+        local pos = UTILS.get_mark(self.real_cursor.edit_region)
+        if old_mode ~= 'i' then
             self.real_cursor.insert_start = UTILS.create_mark(pos, nil, self.real_cursor.insert_start)
         else
             if not self.real_cursor.insert_start then
@@ -112,14 +122,18 @@ function M.play_keys(self, keys, undojoin, new_mode)
         -- restart the insert mode
         vim.cmd(UTILS.vim_escape('normal! i<esc>'))
         vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
-    end
 
+    elseif UTILS.is_visual(self.mode) then
+        -- restart the visual mode
+        vim.cmd(UTILS.vim_escape('normal! <esc>'))
+        REAL_CURSOR._save_and_restore.visual.restore(self.real_cursor)
+    end
 end
 
-function M.save(self, undotree)
+function M.save(self, undotree, mode)
     self.undo_seq = undotree.seq_cur
     self.changedtick = vim.b.changedtick
-    self.mode = vim.api.nvim_get_mode().mode
+    self.mode = mode
     self.changes = nil
 
     local pos = vim.api.nvim_win_get_cursor(0)

@@ -69,32 +69,37 @@ end
 M._save_and_restore = {
     position = {
         save = function(self, args)
-            local pos = args.pos
-            if pos then
-                self.curswant = pos[2]
+            self.curpos = args.pos
+            if self.curpos then
+                self.curswant = self.curpos[2]
             else
-                pos, self.curswant = UTILS.getcurpos()
+                self.curpos, self.curswant = UTILS.getcurpos()
             end
 
             self.current_line = nil
-            if args.line and args.new_mode == 'i' and args.line:match('^%s+$') and pos[2] == #args.line then
+            if args.line and args.new_mode == 'i' and args.line:match('^%s+$') and self.curpos[2] == #args.line then
                 self.current_line = args.line
-                vim.api.nvim_buf_set_lines(0, pos[1], pos[1]+1, true, {self.current_line})
+                vim.api.nvim_buf_set_lines(0, self.curpos[1], self.curpos[1]+1, true, {self.current_line})
             end
 
             if args.old_mode ~= 'i' and args.new_mode == 'i' then
-                self.insert_start = UTILS.create_mark(pos, nil, self.insert_start)
+                self.insert_start = UTILS.create_mark(self.curpos, nil, self.insert_start)
             elseif args.old_mode == 'i' and args.new_mode ~= 'i' then
                 vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.insert_start)
                 self.insert_start = nil
             end
 
-            M.set_pos(self, pos, CONSTANTS.CHANGED_HIGHLIGHT)
+            M.set_pos(self, self.curpos, CONSTANTS.CHANGED_HIGHLIGHT)
         end,
         restore = function(self, args)
+            -- sometimes the mark disappears ...
+            if #UTILS.get_mark(self.edit_region) == 0 then
+                M.set_pos(self, self.curpos, CONSTANTS.CHANGED_HIGHLIGHT)
+            end
+
             local pos = M.get_pos(self)
 
-            if not self.real and args.old_mode == 'i' then
+            if args.old_mode == 'i' then
                 if not self.insert_start then
                     self.insert_start = UTILS.create_mark(UTILS.get_mark(self.edit_region), nil)
                 end
@@ -113,8 +118,18 @@ M._save_and_restore = {
 
     visual = {
         save = function(self)
-            local visual = UTILS.get_visual_range()
+            local visual, mode = UTILS.get_visual_range()
             if visual then
+                if mode == 'V' then
+                    if visual[1][1] <= visual[2][1] then
+                        visual[1][2] = 0
+                        visual[2][2] = CONSTANTS.EOL
+                    else
+                        visual[2][2] = 0
+                        visual[1][2] = CONSTANTS.EOL
+                    end
+                end
+
                 self.visual, self.reverse_region = UTILS.create_mark({visual[1][1], visual[1][2], visual[2][1], visual[2][2]}, CONSTANTS.VISUAL_HIGHLIGHT, self.visual)
             elseif self.visual then
                 vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.visual)
@@ -125,10 +140,12 @@ M._save_and_restore = {
             if UTILS.is_visual(args.old_mode) then
                 if self.visual then
                     local mark = UTILS.get_mark(self.visual, true)
-                    UTILS.set_visual_range(mark, {mark[3].end_row, mark[3].end_col}, args.old_mode)
-                    if self.reverse_region then
-                        vim.cmd[[normal! o]]
-                    end
+                    UTILS.save_and_restore_cursor(function()
+                        UTILS.set_visual_range(mark, {mark[3].end_row, mark[3].end_col}, args.old_mode)
+                        if self.reverse_region then
+                            vim.cmd[[normal! o]]
+                        end
+                    end)
                 else
                     -- don't know the visual range, fake it
                     vim.cmd('normal! '..args.old_mode)

@@ -21,19 +21,7 @@ local function process_event(state, args)
         local from = args.match:sub(1, 1)
         local to = args.match:sub(#args.match)
 
-        if UTILS.is_visual(from) and not UTILS.is_visual(to) then
-            -- just remove the visual ranges instead of playing the macro
-            for i, cursor in ipairs(state.cursors) do
-                if cursor.visual then
-                    local mark = UTILS.get_mark(cursor.visual, true)
-                    cursor.visual = UTILS.create_mark({mark[1], mark[2], mark[3].end_row, mark[3].end_col}, nil, cursor.visual)
-                end
-            end
-
-            MULTI_CURSOR.save(state, vim.fn.undotree())
-            return
-
-        elseif UTILS.is_visual(from) or UTILS.is_visual(to) then
+        if UTILS.is_visual(from) or UTILS.is_visual(to) then
             -- we only care about mode change to/from visual mode
         elseif state.mode ~= 'i' and to == 'i' then
             -- or to insert mode
@@ -47,6 +35,7 @@ local function process_event(state, args)
     end
     state.recursion = true
 
+    local mode = vim.api.nvim_get_mode().mode
     local undotree = vim.fn.undotree()
     local undo_seq = undotree.seq_cur
 
@@ -84,17 +73,13 @@ local function process_event(state, args)
         -- is this undo the most recent one
         local recent_change = (undotree.seq_last == undotree.seq_cur) and args.event:match('^TextChanged')
         -- run the macro at each position
-        local mode = vim.api.nvim_get_mode().mode
         MULTI_CURSOR.play_keys(state, keys, recent_change, mode)
     end
 
-    MULTI_CURSOR.save(state, undotree)
+    local old_mode = state.mode
+    MULTI_CURSOR.save(state, undotree, mode)
+    MULTI_CURSOR.resume_recording(state, old_mode)
 
-    -- start recording again
-    -- macro moves the cursor, so move it back
-    UTILS.save_and_restore_cursor(function()
-        vim.cmd('normal! q'..state.register)
-    end)
     state.recursion = false
 end
 

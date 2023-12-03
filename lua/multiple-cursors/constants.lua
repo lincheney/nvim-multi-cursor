@@ -14,5 +14,6 @@ M.CHANGED_HIGHLIGHT = 'MultiCursorText'
 M.CURSOR_HIGHLIGHT = 'MultiCursor'
 
 M.NOP = '\x80\xfda'
+M.EOL = vim.v.maxcol - 1
 
 return M
