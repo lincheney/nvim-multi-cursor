@@ -78,7 +78,9 @@ local function process_event(state, args)
 
     local old_mode = state.mode
     MULTI_CURSOR.save(state, undotree, mode)
-    MULTI_CURSOR.resume_recording(state, old_mode)
+
+    vim.cmd('normal! q'..state.register)
+    MULTI_CURSOR.restore(state, old_mode)
 
     state.recursion = false
 end
