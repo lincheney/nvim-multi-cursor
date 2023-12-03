@@ -10,6 +10,10 @@ function M.stop(...)
     return require(NAME..'.internal').stop(...)
 end
 
+function M.is_active(...)
+    return require(NAME..'.internal').is_active(...)
+end
+
 function M.start_on_visual()
     local utils = require(NAME..'.utils')
 

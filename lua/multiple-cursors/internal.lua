@@ -138,4 +138,11 @@ function M.stop()
     end
 end
 
+function M.is_active()
+    local buffer = vim.api.nvim_get_current_buf()
+    if STATES[buffer] then
+        return true
+    end
+end
+
 return M
