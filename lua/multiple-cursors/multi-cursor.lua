@@ -47,10 +47,8 @@ function M.play_keys(self, keys, undojoin, new_mode)
     -- remove nop
     keys = keys:gsub(CONSTANTS.NOP, '')
 
-    if self.mode == 'i' then
-        keys = 'i' .. UTILS.vim_escape(CONSTANTS.RESTORE_PLUG) .. keys
-    elseif self.mode == 'R' then
-        keys = 'R' .. keys
+    if self.mode == 'i' or self.mode == 'R' then
+        keys = self.mode .. UTILS.vim_escape(CONSTANTS.RESTORE_PLUG) .. keys
     elseif keys:match('^%s') then
         -- can't start with space, so prefix with 1?
         keys = '1' .. keys
@@ -58,7 +56,7 @@ function M.play_keys(self, keys, undojoin, new_mode)
 
     -- use a plug to get the self pos *before* we leave insert mode
     -- since exiting insert mode moves the cursor
-    if new_mode == 'i' then
+    if new_mode == 'i' or new_mode == 'R' then
         keys = keys .. UTILS.vim_escape(CONSTANTS.RECORD_PLUG .. '<esc>')
     end
 
