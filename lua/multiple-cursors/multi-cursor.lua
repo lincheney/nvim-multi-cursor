@@ -116,8 +116,8 @@ function M.restore(self, old_mode)
             vim.api.nvim_win_set_cursor(0, {start[1]+1, start[2]})
         end
         -- restart the insert mode
-        vim.cmd(UTILS.vim_escape('normal! i<esc>'))
-        vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
+        vim.cmd[[startinsert]]
+        REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
 
     elseif UTILS.is_visual(self.mode) then
         -- restart the visual mode
