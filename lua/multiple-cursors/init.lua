@@ -14,33 +14,67 @@ function M.is_active(...)
     return require(NAME..'.internal').is_active(...)
 end
 
-function M.start_on_visual(options)
+local function get_visual_block_ranges()
     local utils = require(NAME..'.utils')
-
-    local range = utils.get_visual_range()
+    local range, mode = utils.get_visual_range()
     if not range then
         return
     end
-    local col = range[2][2] - 1
+
     local first = math.min(range[1][1], range[2][1])
     local last = math.max(range[1][1], range[2][1])
-    local lines = vim.api.nvim_buf_get_lines(0, first, last+1, false)
+
+    local first_col = math.min(range[1][2], range[2][2] - 1)
+    local last_col = math.max(range[1][2], range[2][2] - 1)
 
     local positions = {}
+    local visuals = {}
+    local lines = vim.api.nvim_buf_get_lines(0, first, last+1, false)
     for i, line in ipairs(lines) do
-        if #line > col then
-            table.insert(positions, {first+i-1, col})
+        if first_col < #line then
+            local col = math.min(last_col, #line - 1)
+            if first_col == range[1][2] then
+                table.insert(positions, {first+i-1, col})
+                table.insert(visuals, {first+i-1, first_col, first+i-1, col + 1})
+            else
+                table.insert(positions, {first+i-1, first_col})
+                table.insert(visuals, {first+i-1, col, first+i-1, first_col + 1})
+            end
         end
     end
 
-    M.start(positions, nil, options)
-    return true
+    return positions, visuals, visuals[range[2][1] == first and 1 or #visuals], mode
+end
+
+function M.start_on_visual_block(options)
+    local positions, visuals, current, mode = get_visual_block_ranges()
+    if positions then
+        local utils = require(NAME..'.utils')
+        utils.set_visual_range({current[1], current[2]}, {current[3], current[4]}, mode)
+        return M.start(positions, visuals, options)
+    end
+end
+
+function M.start_on_visual(options)
+    local positions, visuals, current, mode = get_visual_block_ranges()
+    if positions then
+        vim.api.nvim_win_set_cursor(0, {current[3]+1, current[4]-1})
+        return M.start(positions, nil, options)
+    end
 end
 
 function M.visual_block_insert(options)
-    local utils = require(NAME..'.utils')
     if M.start_on_visual(options) then
+        local utils = require(NAME..'.utils')
         vim.api.nvim_feedkeys(utils.vim_escape('<esc>i'), 't', true)
+        utils.wait_for_normal_mode(M.stop)
+    end
+end
+
+function M.visual_block_change(options)
+    if M.start_on_visual_block(options) then
+        local utils = require(NAME..'.utils')
+        vim.api.nvim_feedkeys('c', 't', false)
         utils.wait_for_normal_mode(M.stop)
     end
 end
