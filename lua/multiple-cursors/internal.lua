@@ -76,6 +76,10 @@ local function process_event(state, args)
         local recent_change = (undotree.seq_last == undotree.seq_cur) and args.event:match('^TextChanged')
         -- run the macro at each position
         MULTI_CURSOR.play_keys(state, keys, recent_change, mode)
+
+    elseif not UTILS.is_visual(mode) then
+        -- clear visual highlights
+        MULTI_CURSOR.clear_visual(state)
     end
 
     if not MULTI_CURSOR.save(state, undotree, mode) then

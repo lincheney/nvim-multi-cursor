@@ -22,19 +22,18 @@ function M.get_visual_range()
     if M.is_visual(mode) then
         local first = vim.fn.getpos('v')
         local last = vim.api.nvim_win_get_cursor(0)
-        return {{first[2]-1, first[3]-1}, {last[1]-1, last[2]+1}}, mode
+        return {{first[2]-1, first[3]-1}, {last[1]-1, last[2]}}, mode
     end
 end
 
 function M.set_visual_range(first, last, mode)
     -- reselect the visual region
     vim.api.nvim_win_set_cursor(0, {first[1]+1, first[2]})
-    if vim.api.nvim_get_mode().mode == 'v' then
-        vim.cmd('normal! o')
-    else
+    if vim.api.nvim_get_mode().mode ~= 'v' then
         vim.cmd('normal! v')
     end
-    vim.api.nvim_win_set_cursor(0, {last[1]+1, last[2]-1})
+    vim.cmd('normal! o')
+    vim.api.nvim_win_set_cursor(0, {last[1]+1, last[2]})
     -- change to the correct visual mode
     if mode and mode ~= 'v' then
         vim.cmd('normal! '..mode)
@@ -50,14 +49,13 @@ function M.create_mark(pos, highlight, id)
 
     local left = {pos[1], pos[2]}
     -- if right is not given, use same as left
-    local right = pos[3] and pos[4] and {pos[3], pos[4]} or {pos[1], pos[2]}
+    local right = pos[3] and pos[4] and {pos[3], pos[4]}
 
-    local reverse = vim.version.cmp(left, right) > 0
+    local reverse = right and vim.version.cmp(left, right) > 0
     if reverse then
         left, right = right, left
-        left[2] = left[2] - 1
-        right[2] = right[2] + 1
     end
+    right = right or {pos[1], pos[2]-1}
 
     return vim.api.nvim_buf_set_extmark(
         0, CONSTANTS.NAMESPACE,
@@ -66,7 +64,7 @@ function M.create_mark(pos, highlight, id)
             id = id,
             hl_group = highlight,
             end_row = right[1],
-            end_col = math.min(right[2], #line),
+            end_col = math.min(right[2]+1, #line),
             right_gravity = false,
             end_right_gravity = true,
         }

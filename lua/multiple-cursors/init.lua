@@ -1,22 +1,23 @@
 local M = {}
 
-local NAME = 'multiple-cursors'
+local function UTILS() return require('multiple-cursors.utils') end
+local function INTERNAL() return require('multiple-cursors.internal') end
+local function CONSTANTS() return require('multiple-cursors.constants') end
 
 function M.start(...)
-    return require(NAME..'.internal').start(...)
+    return INTERNAL().start(...)
 end
 
 function M.stop(...)
-    return require(NAME..'.internal').stop(...)
+    return INTERNAL().stop(...)
 end
 
 function M.is_active(...)
-    return require(NAME..'.internal').is_active(...)
+    return INTERNAL().is_active(...)
 end
 
 local function get_visual_block_ranges()
-    local utils = require(NAME..'.utils')
-    local range, mode = utils.get_visual_range()
+    local range, mode = UTILS().get_visual_range()
     if not range then
         return
     end
@@ -24,101 +25,85 @@ local function get_visual_block_ranges()
     local first = math.min(range[1][1], range[2][1])
     local last = math.max(range[1][1], range[2][1])
 
-    local first_col = math.min(range[1][2], range[2][2] - 1)
-    local last_col = math.max(range[1][2], range[2][2] - 1)
+    local first_col = math.min(range[1][2], range[2][2])
+    local last_col = math.max(range[1][2], range[2][2])
 
-    local positions = {}
-    local visuals = {}
+    local cursors = {}
+    local anchors = {}
     local lines = vim.api.nvim_buf_get_lines(0, first, last+1, false)
     for i, line in ipairs(lines) do
         if first_col < #line then
-            local col = math.min(last_col, #line - 1)
-            if first_col == range[1][2] then
-                table.insert(positions, {first+i-1, col})
-                table.insert(visuals, {first+i-1, first_col, first+i-1, col + 1})
-            else
-                table.insert(positions, {first+i-1, first_col})
-                table.insert(visuals, {first+i-1, col, first+i-1, first_col + 1})
-            end
+            table.insert(cursors, {first+i-1, math.min(range[2][2], #line-1)})
+            table.insert(anchors, {first+i-1, math.min(range[1][2], #line-1)})
         end
     end
 
-    return positions, visuals, visuals[range[2][1] == first and 1 or #visuals], mode
+    local i = range[2][1] == first and 1 or #anchors
+    return cursors, anchors, {cursors[i], anchors[i]}, mode
 end
 
 function M.start_on_visual_block(options)
-    local positions, visuals, current, mode = get_visual_block_ranges()
-    if positions then
-        local utils = require(NAME..'.utils')
-        utils.set_visual_range({current[1], current[2]}, {current[3], current[4]}, mode)
-        return M.start(positions, visuals, options)
+    local cursors, anchors, current, mode = get_visual_block_ranges()
+    if cursors then
+        UTILS().set_visual_range(current[1], current[2], mode)
+        return M.start(cursors, anchors, options)
     end
 end
 
 function M.start_on_visual(options)
-    local positions, visuals, current, mode = get_visual_block_ranges()
-    if positions then
-        vim.api.nvim_win_set_cursor(0, {current[3]+1, current[4]-1})
-        return M.start(positions, nil, options)
+    local cursors, anchors, current, mode = get_visual_block_ranges()
+    if cursors then
+        vim.api.nvim_win_set_cursor(0, {current[1][1]+1, current[1][2]})
+        return M.start(cursors, nil, options)
     end
 end
 
 function M.visual_block_insert(options)
     if M.start_on_visual(options) then
-        local utils = require(NAME..'.utils')
-        vim.api.nvim_feedkeys(utils.vim_escape('<esc>i'), 't', true)
-        utils.wait_for_normal_mode(M.stop)
+        vim.api.nvim_feedkeys(UTILS().vim_escape('<esc>i'), 't', true)
+        UTILS().wait_for_normal_mode(M.stop)
     end
 end
 
 function M.visual_block_change(options)
     if M.start_on_visual_block(options) then
-        local utils = require(NAME..'.utils')
         vim.api.nvim_feedkeys('c', 't', false)
-        utils.wait_for_normal_mode(M.stop)
+        UTILS().wait_for_normal_mode(M.stop)
     end
 end
 
 function M.visual_block_append(options)
-    local utils = require(NAME..'.utils')
-    local constants = require(NAME..'.constants')
-
-    local range = utils.get_visual_range()
+    local range = UTILS().get_visual_range()
     if not range then
         return
     end
-    local pos, curswant = utils.getcurpos()
-    local end_of_line = (curswant == constants.EOL)
+    local pos, curswant = UTILS().getcurpos()
+    local end_of_line = (curswant == CONSTANTS().EOL)
 
-    local positions = {}
-    local col = range[2][2] - 1
+    local cursors = {}
+    local col = end_of_line and 0 or range[2][2] - 1
     local first = math.min(range[1][1], range[2][1])
     local last = math.max(range[1][1], range[2][1])
 
     local lines = vim.api.nvim_buf_get_lines(0, first, last+1, false)
     for i, line in ipairs(lines) do
-        if end_of_line then
-            table.insert(positions, {first+i-1, 0})
-        else
-            if #line <= col then
-                -- add padding
-                vim.api.nvim_buf_set_lines(0, first+i-1, first+i, true, {line..(' '):rep(col - #line + 1)})
-            end
-            table.insert(positions, {first+i-1, col})
+        if #line <= col then
+            -- add padding
+            vim.api.nvim_buf_set_lines(0, first+i-1, first+i, true, {line..(' '):rep(col - #line + 1)})
         end
+        table.insert(cursors, {first+i-1, col})
     end
 
-    M.start(positions, nil, options)
+    M.start(cursors, nil, options)
     if end_of_line then
-        vim.api.nvim_feedkeys(utils.vim_escape('<esc>A'), 't', true)
+        vim.api.nvim_feedkeys(UTILS().vim_escape('<esc>A'), 't', true)
     else
-        vim.api.nvim_feedkeys(utils.vim_escape('<esc>a'), 't', true)
+        vim.api.nvim_feedkeys(UTILS().vim_escape('<esc>a'), 't', true)
     end
-    utils.wait_for_normal_mode(M.stop)
+    UTILS().wait_for_normal_mode(M.stop)
 end
 
 function M.start_at_regex(regex, replace, range, options)
-    local utils = require(NAME..'.utils')
     local cursor = vim.api.nvim_win_get_cursor(0)
     cursor[1] = cursor[1] - 1
 
@@ -142,29 +127,29 @@ function M.start_at_regex(regex, replace, range, options)
 
     local index = nil
     -- get all substitute matches
-    local positions = {}
-    local visuals = {}
+    local cursors = {}
+    local anchors = {}
     for i, value in ipairs(vim.g.multiple_cursors_positions) do
         local pos = value[1]
         local start = {pos[2]-1, pos[3]-1}
         local lines = value[2]
         local finish = {start[1] + #lines - 1, #lines == 1 and start[2]+#lines[1] or #lines[#lines]}
 
-        table.insert(positions, {finish[1], finish[2]-1})
-        table.insert(visuals, {start[1], start[2], finish[1], finish[2]})
+        table.insert(cursors, {finish[1], finish[2]-1})
+        table.insert(anchors, {start[1], start[2]})
 
-        if vim.version.cmp(cursor, positions[i]) <= 0 and (not index or vim.version.cmp(positions[i], positions[index]) < 0) then
+        if vim.version.cmp(cursor, cursors[i]) <= 0 and (not index or vim.version.cmp(cursors[i], cursors[index]) < 0) then
             index = i
         end
     end
     index = index or 1
 
-    utils.set_visual_range(visuals[index], {positions[index][1], positions[index][2]+1}, 'v')
-    M.start(positions, visuals, options)
+    UTILS().set_visual_range(anchors[index], {cursors[index][1], cursors[index][2]}, 'v')
+    M.start(cursors, anchors, options)
 
     if replace then
         vim.api.nvim_feedkeys('c', 't', false)
-        utils.wait_for_normal_mode(M.stop)
+        UTILS().wait_for_normal_mode(M.stop)
     end
 end
 

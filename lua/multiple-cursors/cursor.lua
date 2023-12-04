@@ -24,20 +24,33 @@ vim.keymap.set('i', CONSTANTS.RESTORE_PLUG, function()
 end)
 
 
-function M.make(pos, visual, curswant)
-    local reverse_region
-    if visual then
-        visual, reverse_region = UTILS.create_mark(visual, CONSTANTS.VISUAL_HIGHLIGHT)
-    end
+function M.make(pos, anchor, curswant, mode)
     local self = {
         pos = UTILS.create_cursor_highlight_mark(pos),
         curpos = pos,
         curswant = curswant,
         edit_region = UTILS.create_mark(pos, CONSTANTS.CHANGED_HIGHLIGHT),
-        visual = visual,
-        reverse_region = reverse_region,
         undo_pos = {},
     }
+
+    if UTILS.is_visual(mode) then
+        anchor = anchor or {pos[1], pos[2]+1}
+
+        local coords
+        coords = {anchor[1], anchor[2], pos[1], pos[2]}
+        if mode == 'V' then
+            if anchor[1] <= pos[1] then
+                coords[2] = 0
+                coords[4] = CONSTANTS.EOL
+            else
+                coords[4] = 0
+                coords[2] = CONSTANTS.EOL
+            end
+        end
+        self.visual, self.reverse_region = UTILS.create_mark(coords, CONSTANTS.VISUAL_HIGHLIGHT)
+    end
+
+
     M._save_and_restore.marks.save(self)
     M._save_and_restore.registers.save(self)
     return self
@@ -132,25 +145,28 @@ M._save_and_restore = {
                 end
 
                 self.visual, self.reverse_region = UTILS.create_mark({visual[1][1], visual[1][2], visual[2][1], visual[2][2]}, CONSTANTS.VISUAL_HIGHLIGHT, self.visual)
-            elseif self.visual then
-                vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.visual)
-                self.visual = nil
+            else
+                M.clear_visual(self)
             end
         end,
         restore = function(self, args)
             if UTILS.is_visual(args.old_mode) then
                 if self.visual then
                     local mark = UTILS.get_mark(self.visual, true)
-                    UTILS.save_and_restore_cursor(function()
-                        UTILS.set_visual_range(mark, {mark[3].end_row, mark[3].end_col}, args.old_mode)
-                        if self.reverse_region then
-                            vim.cmd[[normal! o]]
-                        end
-                    end)
-                else
-                    -- don't know the visual range, fake it
-                    vim.cmd('normal! '..args.old_mode)
+                    local cursor = {mark[3].end_row, mark[3].end_col-1}
+                    if mark[1] ~= cursor[1] or mark[2] ~= cursor[2]+1 then
+                        UTILS.save_and_restore_cursor(function()
+                            UTILS.set_visual_range(mark, cursor, args.old_mode)
+                            if self.reverse_region then
+                                vim.cmd[[normal! o]]
+                            end
+                        end)
+                        return
+                    end
                 end
+
+                -- don't know the visual range, fake it
+                vim.cmd('normal! '..args.old_mode)
             end
         end,
     },
@@ -234,6 +250,13 @@ function M.restore_undo_pos(self, undo_seq, highlight)
         self.curswant = pos[2]
     end
     return self, pos
+end
+
+function M.clear_visual(self)
+    if self.visual then
+        vim.api.nvim_buf_del_extmark(0, CONSTANTS.NAMESPACE, self.visual)
+        self.visual = nil
+    end
 end
 
 return M

@@ -5,7 +5,7 @@ local CONSTANTS = require('multiple-cursors.constants')
 local REAL_CURSOR = require('multiple-cursors.real-cursor')
 local CURSOR = require('multiple-cursors.cursor')
 
-function M.make(buffer, positions, visuals, options)
+function M.make(buffer, cursors, anchors, options)
     local self = {
         buffer = buffer,
         register = options.register,
@@ -21,8 +21,9 @@ function M.make(buffer, positions, visuals, options)
     vim.bo.autoindent = false
     vim.bo.indentkeys = ''
 
-    for i = 1, #positions do
-        table.insert(self.cursors, CURSOR.make(positions[i], visuals and visuals[i], self.real_cursor.curswant))
+    local mode = vim.api.nvim_get_mode().mode
+    for i = 1, #cursors do
+        table.insert(self.cursors, CURSOR.make(cursors[i], anchors and anchors[i], self.real_cursor.curswant, mode))
     end
     M.save(self, vim.fn.undotree())
     return self
@@ -167,6 +168,12 @@ function M.restore_undo_pos(self, undo_seq)
     local _, pos = REAL_CURSOR.restore_undo_pos(self.real_cursor, undo_seq)
     if pos then
         vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
+    end
+end
+
+function M.clear_visual(self)
+    for i, cursor in ipairs(self.cursors) do
+        CURSOR.clear_visual(cursor)
     end
 end
 
