@@ -29,7 +29,11 @@ end
 function M.set_visual_range(first, last, mode)
     -- reselect the visual region
     vim.api.nvim_win_set_cursor(0, {first[1]+1, first[2]})
-    vim.cmd('normal! v')
+    if vim.api.nvim_get_mode().mode == 'v' then
+        vim.cmd('normal! o')
+    else
+        vim.cmd('normal! v')
+    end
     vim.api.nvim_win_set_cursor(0, {last[1]+1, last[2]-1})
     -- change to the correct visual mode
     if mode and mode ~= 'v' then
