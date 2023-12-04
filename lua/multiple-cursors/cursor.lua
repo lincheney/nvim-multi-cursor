@@ -175,7 +175,12 @@ M._save_and_restore = {
             return self.marks
         end,
         restore = function(self)
+            local numlines = vim.api.nvim_buf_line_count(0)
+            local last_line_len = #vim.api.nvim_buf_get_lines(0, -2, -1, true)[1]
             for k, v in pairs(self.marks) do
+                if v[1] > numlines or (v[1] == numlines and v[2] >= last_line_len) then
+                    v = {numlines, CONSTANTS.EOL}
+                end
                 vim.api.nvim_buf_set_mark(0, k, v[1], v[2], {})
             end
         end,
