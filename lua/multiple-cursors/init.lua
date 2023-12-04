@@ -14,7 +14,7 @@ function M.is_active(...)
     return require(NAME..'.internal').is_active(...)
 end
 
-function M.start_on_visual()
+function M.start_on_visual(options)
     local utils = require(NAME..'.utils')
 
     local range = utils.get_visual_range()
@@ -33,19 +33,19 @@ function M.start_on_visual()
         end
     end
 
-    M.start(positions)
+    M.start(positions, nil, options)
     return true
 end
 
-function M.visual_block_insert()
+function M.visual_block_insert(options)
     local utils = require(NAME..'.utils')
-    if M.start_on_visual() then
+    if M.start_on_visual(options) then
         vim.api.nvim_feedkeys(utils.vim_escape('<esc>i'), 't', true)
         utils.wait_for_normal_mode(M.stop)
     end
 end
 
-function M.visual_block_append()
+function M.visual_block_append(options)
     local utils = require(NAME..'.utils')
     local constants = require(NAME..'.constants')
 
@@ -74,7 +74,7 @@ function M.visual_block_append()
         end
     end
 
-    M.start(positions)
+    M.start(positions, nil, options)
     if end_of_line then
         vim.api.nvim_feedkeys(utils.vim_escape('<esc>A'), 't', true)
     else
@@ -83,7 +83,7 @@ function M.visual_block_append()
     utils.wait_for_normal_mode(M.stop)
 end
 
-function M.start_at_regex(regex, replace, range)
+function M.start_at_regex(regex, replace, range, options)
     local utils = require(NAME..'.utils')
     local cursor = vim.api.nvim_win_get_cursor(0)
     cursor[1] = cursor[1] - 1
@@ -126,7 +126,7 @@ function M.start_at_regex(regex, replace, range)
     index = index or 1
 
     utils.set_visual_range(visuals[index], {positions[index][1], positions[index][2]+1}, 'v')
-    M.start(positions, visuals)
+    M.start(positions, visuals, options)
 
     if replace then
         vim.api.nvim_feedkeys('c', 't', false)

@@ -124,7 +124,8 @@ function M.start(positions, visuals, options)
         end,
     })
 
-    STATES[buffer] =state
+    STATES[buffer] = state
+    state.on_leave = options.on_leave
     return state
 end
 
@@ -133,6 +134,9 @@ function M.stop()
     if STATES[buffer] then
         MULTI_CURSOR.remove(STATES[buffer])
         vim.cmd('normal! q')
+        if STATES[buffer].on_leave then
+            STATES[buffer].on_leave()
+        end
         STATES[buffer] = nil
     end
 end
