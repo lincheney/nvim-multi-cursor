@@ -100,6 +100,8 @@ function M.play_keys(self, keys, undojoin, new_mode)
 end
 
 function M.save(self, undotree, mode)
+    mode = mode or vim.api.nvim_get_mode().mode
+
     -- restore the mode as well
     if mode == 'i' then
         local pos = UTILS.get_mark(self.real_cursor.edit_region)
