@@ -114,11 +114,6 @@ function M.save(self, undotree, mode)
         end
         -- restart the insert mode
         vim.cmd[[startinsert]]
-
-    elseif UTILS.is_visual(mode) then
-        -- restart the visual mode
-        REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
-        vim.cmd(UTILS.vim_escape('normal! <esc>')..mode)
     end
 
     -- macro moves cursor, so move it back
