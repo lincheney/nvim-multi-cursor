@@ -100,9 +100,6 @@ function M.play_keys(self, keys, undojoin, new_mode)
 end
 
 function M.restore(self, old_mode)
-    -- macro moves cursor, so move it back
-    REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
-
     -- restore the mode as well
     if self.mode == 'i' then
         local pos = UTILS.get_mark(self.real_cursor.edit_region)
@@ -117,13 +114,15 @@ function M.restore(self, old_mode)
         end
         -- restart the insert mode
         vim.cmd[[startinsert]]
-        REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
 
     elseif UTILS.is_visual(self.mode) then
         -- restart the visual mode
-        vim.cmd(UTILS.vim_escape('normal! <esc>'))
-        REAL_CURSOR._save_and_restore.visual.restore(self.real_cursor)
+        REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
+        vim.cmd(UTILS.vim_escape('normal! <esc>')..self.mode)
     end
+
+    -- macro moves cursor, so move it back
+    REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
 end
 
 function M.save(self, undotree, mode)
