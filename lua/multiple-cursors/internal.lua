@@ -78,13 +78,15 @@ local function process_event(state, args)
         MULTI_CURSOR.play_keys(state, keys, recent_change, mode)
     end
 
-    MULTI_CURSOR.save(state, undotree, mode)
+    if not MULTI_CURSOR.save(state, undotree, mode) then
+        M.stop()
+    end
     state.recursion = false
 end
 
 function M.start(positions, visuals, options)
     local buffer = vim.api.nvim_get_current_buf()
-    M.stop(buffer)
+    M.stop()
 
     options = vim.tbl_deep_extend('keep', options or {}, DEFAULT_OPTS)
 

@@ -119,23 +119,26 @@ function M.save(self, undotree, mode)
     -- macro moves cursor, so move it back
     local pos = REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
 
+    local numlines = vim.api.nvim_buf_line_count(0)
     -- check for overlaps
     local marks = vim.tbl_map(function(c) return UTILS.get_mark(c.pos) end, self.cursors)
     for i = #self.cursors, 1, -1 do
-        local overlap = false
+        local delete = false
 
-        if marks[i][1] == pos[1] and marks[i][2] == pos[2] then
-            overlap = true
+        if marks[i][1] >= numlines then
+            delete = true
+        elseif marks[i][1] == pos[1] and marks[i][2] == pos[2] then
+            delete = true
         else
             for j = 1, i-1 do
                 if marks[i][1] == marks[j][1] and marks[i][2] == marks[j][2] then
-                    overlap = true
+                    delete = true
                     break
                 end
             end
         end
 
-        if overlap then
+        if delete then
             CURSOR.remove(self.cursors[i])
             table.remove(self.cursors, i)
         end
@@ -151,6 +154,8 @@ function M.save(self, undotree, mode)
     self.changedtick = vim.b.changedtick
     self.mode = mode
     self.changes = nil
+
+    return #self.cursors > 0
 end
 
 function M.restore_undo_pos(self, undo_seq)
