@@ -39,13 +39,15 @@ local function process_event(state, args)
     local undotree = vim.fn.undotree()
     local undo_seq = undotree.seq_cur
 
+    local edit_region = UTILS.get_mark(state.real_cursor.edit_region, true)
     -- stop recording
     -- macro moves the cursor, so move it back
+    local keys
     UTILS.save_and_restore_cursor(function()
         vim.cmd('normal! q')
+        keys = vim.fn.getreg(state.register)
+        vim.cmd('normal! q'..state.register)
     end)
-    local keys = vim.fn.getreg(state.register)
-    local edit_region = UTILS.get_mark(state.real_cursor.edit_region, true)
 
     if args.event == 'WinEnter' then
         -- don't run these keys
@@ -76,12 +78,7 @@ local function process_event(state, args)
         MULTI_CURSOR.play_keys(state, keys, recent_change, mode)
     end
 
-    local old_mode = state.mode
     MULTI_CURSOR.save(state, undotree, mode)
-
-    vim.cmd('normal! q'..state.register)
-    MULTI_CURSOR.restore(state, old_mode)
-
     state.recursion = false
 end
 

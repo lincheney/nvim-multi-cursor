@@ -99,11 +99,11 @@ function M.play_keys(self, keys, undojoin, new_mode)
     REAL_CURSOR._save_and_restore.position.save(self.real_cursor)
 end
 
-function M.restore(self, old_mode)
+function M.save(self, undotree, mode)
     -- restore the mode as well
-    if self.mode == 'i' then
+    if mode == 'i' then
         local pos = UTILS.get_mark(self.real_cursor.edit_region)
-        if old_mode ~= 'i' then
+        if self.mode ~= 'i' then
             self.real_cursor.insert_start = UTILS.create_mark(pos, nil, self.real_cursor.insert_start)
         else
             if not self.real_cursor.insert_start then
@@ -115,24 +115,14 @@ function M.restore(self, old_mode)
         -- restart the insert mode
         vim.cmd[[startinsert]]
 
-    elseif UTILS.is_visual(self.mode) then
+    elseif UTILS.is_visual(mode) then
         -- restart the visual mode
         REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
-        vim.cmd(UTILS.vim_escape('normal! <esc>')..self.mode)
+        vim.cmd(UTILS.vim_escape('normal! <esc>')..mode)
     end
 
     -- macro moves cursor, so move it back
-    REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
-end
-
-function M.save(self, undotree, mode)
-    self.undo_seq = undotree.seq_cur
-    self.changedtick = vim.b.changedtick
-    self.mode = mode
-    self.changes = nil
-
-    local pos = vim.api.nvim_win_get_cursor(0)
-    pos[1] = pos[1] - 1
+    local pos = REAL_CURSOR._save_and_restore.position.restore(self.real_cursor)
 
     -- check for overlaps
     local marks = vim.tbl_map(function(c) return UTILS.get_mark(c.pos) end, self.cursors)
@@ -156,10 +146,16 @@ function M.save(self, undotree, mode)
         end
     end
 
+    -- record undo positions
     REAL_CURSOR.save_undo_pos(self.real_cursor, undotree.seq_cur, pos)
     for i, cursor in ipairs(self.cursors) do
         CURSOR.save_undo_pos(cursor, undotree.seq_cur, marks[i])
     end
+
+    self.undo_seq = undotree.seq_cur
+    self.changedtick = vim.b.changedtick
+    self.mode = mode
+    self.changes = nil
 end
 
 function M.restore_undo_pos(self, undo_seq)

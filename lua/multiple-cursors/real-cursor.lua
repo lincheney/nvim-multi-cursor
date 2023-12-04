@@ -36,6 +36,7 @@ M._save_and_restore = {
 
             local pos = CURSOR.get_pos(self)
             vim.fn.setpos('.', {0, pos[1]+1, pos[2]+1, 0, self.curswant+1})
+            return pos
         end,
     },
 
