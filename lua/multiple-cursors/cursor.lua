@@ -34,22 +34,8 @@ function M.make(pos, anchor, curswant, mode)
     }
 
     if UTILS.is_visual(mode) then
-        anchor = anchor or {pos[1], pos[2]+1}
-
-        local coords
-        coords = {anchor[1], anchor[2], pos[1], pos[2]}
-        if mode == 'V' then
-            if anchor[1] <= pos[1] then
-                coords[2] = 0
-                coords[4] = CONSTANTS.EOL
-            else
-                coords[4] = 0
-                coords[2] = CONSTANTS.EOL
-            end
-        end
-        self.visual, self.reverse_region = UTILS.create_mark(coords, CONSTANTS.VISUAL_HIGHLIGHT)
+        M.set_visual(self, anchor or {pos[1], pos[2]+1}, pos, mode)
     end
-
 
     M._save_and_restore.marks.save(self)
     M._save_and_restore.registers.save(self)
@@ -78,6 +64,20 @@ function M.get_pos(self)
     -- get the cursor pos from the mark
     local mark = UTILS.get_mark(self.edit_region, true)
     return {mark[3].end_row, mark[3].end_col}
+end
+
+function M.set_visual(self, anchor, pos, mode)
+    local coords = {anchor[1], anchor[2], pos[1], pos[2]}
+    if mode == 'V' then
+        if anchor[1] <= pos[1] then
+            coords[2] = 0
+            coords[4] = CONSTANTS.EOL
+        else
+            coords[4] = 0
+            coords[2] = CONSTANTS.EOL
+        end
+    end
+    self.visual, self.reverse_region = UTILS.create_mark(coords, CONSTANTS.VISUAL_HIGHLIGHT, self.visual)
 end
 
 M._save_and_restore = {
@@ -134,17 +134,7 @@ M._save_and_restore = {
         save = function(self)
             local visual, mode = UTILS.get_visual_range()
             if visual then
-                if mode == 'V' then
-                    if visual[1][1] <= visual[2][1] then
-                        visual[1][2] = 0
-                        visual[2][2] = CONSTANTS.EOL
-                    else
-                        visual[2][2] = 0
-                        visual[1][2] = CONSTANTS.EOL
-                    end
-                end
-
-                self.visual, self.reverse_region = UTILS.create_mark({visual[1][1], visual[1][2], visual[2][1], visual[2][2]}, CONSTANTS.VISUAL_HIGHLIGHT, self.visual)
+                M.set_visual(self, {visual[1][1], visual[1][2]}, {visual[2][1], visual[2][2]}, mode)
             else
                 M.clear_visual(self)
             end
