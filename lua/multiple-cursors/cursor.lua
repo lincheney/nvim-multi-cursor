@@ -31,6 +31,7 @@ function M.make(pos, visual, curswant)
     end
     local self = {
         pos = UTILS.create_cursor_highlight_mark(pos),
+        curpos = pos,
         curswant = curswant,
         edit_region = UTILS.create_mark(pos, CONSTANTS.CHANGED_HIGHLIGHT),
         visual = visual,
