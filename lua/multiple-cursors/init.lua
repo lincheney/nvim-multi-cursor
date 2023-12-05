@@ -32,7 +32,10 @@ local function get_visual_block_ranges()
     local anchors = {}
     local lines = vim.api.nvim_buf_get_lines(0, first, last+1, false)
     for i, line in ipairs(lines) do
-        if first_col < #line then
+        if first_col == 0 then
+            table.insert(cursors, {first+i-1, 0})
+            table.insert(anchors, {first+i-1, 0})
+        elseif first_col < #line then
             table.insert(cursors, {first+i-1, math.min(range[2][2], #line-1)})
             table.insert(anchors, {first+i-1, math.min(range[1][2], #line-1)})
         end
