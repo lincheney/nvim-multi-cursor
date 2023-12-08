@@ -219,13 +219,14 @@ function M.restore_and_save(self, cb, old_mode, new_mode)
     end
 end
 
-function M.play_keys(self, keys, undojoin, old_mode, new_mode)
+function M.play_keys(self, register, keys, undojoin, old_mode, new_mode)
     -- get to normal mode
     vim.cmd(UTILS.vim_escape('normal! <esc>'))
 
     M.restore_and_save(self, function()
         -- execute the keys
-        vim.cmd((undojoin and 'undojoin | ' or '')..'silent! normal '..keys)
+        vim.fn.setreg(register, keys)
+        vim.cmd((undojoin and 'undojoin | ' or '')..'silent! normal! @'..register)
     end, old_mode, new_mode)
 end
 
