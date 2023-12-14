@@ -1,6 +1,6 @@
 local M = {}
 
-local CONSTANTS = require('multiple-cursors.constants')
+local CONSTANTS = require('nvim-multi-cursor.constants')
 
 local VISUALMODES = {['v']=true, ['V']=true, ['']=true}
 

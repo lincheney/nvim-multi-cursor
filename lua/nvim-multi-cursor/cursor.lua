@@ -1,7 +1,7 @@
 local M = {}
 
-local UTILS = require('multiple-cursors.utils')
-local CONSTANTS = require('multiple-cursors.constants')
+local UTILS = require('nvim-multi-cursor.utils')
+local CONSTANTS = require('nvim-multi-cursor.constants')
 
 local RECORDED_INSERT_MODE = nil
 vim.keymap.set('', CONSTANTS.RECORD_PLUG, CONSTANTS.NOP)

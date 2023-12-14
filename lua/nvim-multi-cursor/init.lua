@@ -1,8 +1,8 @@
 local M = {}
 
-local function UTILS() return require('multiple-cursors.utils') end
-local function INTERNAL() return require('multiple-cursors.internal') end
-local function CONSTANTS() return require('multiple-cursors.constants') end
+local function UTILS() return require('nvim-multi-cursor.utils') end
+local function INTERNAL() return require('nvim-multi-cursor.internal') end
+local function CONSTANTS() return require('nvim-multi-cursor.constants') end
 
 function M.start(...)
     return INTERNAL().start(...)

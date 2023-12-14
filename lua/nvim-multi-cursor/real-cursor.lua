@@ -1,8 +1,8 @@
 local M = {}
 
-local UTILS = require('multiple-cursors.utils')
-local CURSOR = require('multiple-cursors.cursor')
-local CONSTANTS = require('multiple-cursors.constants')
+local UTILS = require('nvim-multi-cursor.utils')
+local CURSOR = require('nvim-multi-cursor.cursor')
+local CONSTANTS = require('nvim-multi-cursor.constants')
 
 function M.make()
     local pos, curswant = UTILS.getcurpos()

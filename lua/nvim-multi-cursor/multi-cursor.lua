@@ -1,9 +1,9 @@
 local M = {}
 
-local UTILS = require('multiple-cursors.utils')
-local CONSTANTS = require('multiple-cursors.constants')
-local REAL_CURSOR = require('multiple-cursors.real-cursor')
-local CURSOR = require('multiple-cursors.cursor')
+local UTILS = require('nvim-multi-cursor.utils')
+local CONSTANTS = require('nvim-multi-cursor.constants')
+local REAL_CURSOR = require('nvim-multi-cursor.real-cursor')
+local CURSOR = require('nvim-multi-cursor.cursor')
 
 function M.make(buffer, cursors, anchors, options)
     local self = {

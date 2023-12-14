@@ -1,7 +1,7 @@
 local M = {}
 
-local UTILS = require('multiple-cursors.utils')
-local MULTI_CURSOR = require('multiple-cursors.multi-cursor')
+local UTILS = require('nvim-multi-cursor.utils')
+local MULTI_CURSOR = require('nvim-multi-cursor.multi-cursor')
 
 local DEFAULT_OPTS = {
     register = 'y',
