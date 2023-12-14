@@ -106,9 +106,9 @@ function M.start_at_regex(regex, replace, range, options)
         vim.fn.setreg('/', regex)
     end
     -- get all substitute matches
-    vim.g.multiple_cursors_positions = {}
+    vim.g._nvim_multi_cursor_positions = {}
 
-    local cmd = 's//\\=len(add(g:multiple_cursors_positions, [getcurpos(), submatch(0, 1)]))/n'
+    local cmd = 's//\\=len(add(g:_nvim_multi_cursor_positions, [getcurpos(), submatch(0, 1)]))/n'
     if range then
         cmd = range[1]..','..range[2]..cmd
     else
@@ -124,7 +124,7 @@ function M.start_at_regex(regex, replace, range, options)
     -- get all substitute matches
     local cursors = {}
     local anchors = {}
-    for i, value in ipairs(vim.g.multiple_cursors_positions) do
+    for i, value in ipairs(vim.g._nvim_multi_cursor_positions) do
         local pos = value[1]
         local start = {pos[2]-1, pos[3]-1}
         local lines = value[2]
