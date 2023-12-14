@@ -9,9 +9,9 @@ table.insert(M.ALL_REGISTERS, '')
 
 M.ALL_MARKS = vim.split('<>[]', '')
 
-M.VISUAL_HIGHLIGHT = 'MultiCursorVisual'
-M.CHANGED_HIGHLIGHT = 'MultiCursorText'
-M.CURSOR_HIGHLIGHT = 'MultiCursor'
+M.VISUAL_HIGHLIGHT = 'NvimMultiCursorVisual'
+M.CHANGED_HIGHLIGHT = 'NvimMultiCursorText'
+M.CURSOR_HIGHLIGHT = 'NvimMultiCursor'
 
 M.NOP = '\x80\xfda'
 M.EOL = vim.v.maxcol - 1

@@ -88,13 +88,13 @@ local function process_event(state, args)
     state.recursion = false
 end
 
-function M.start(positions, visuals, options)
+function M.start(positions, anchors, options)
     local buffer = vim.api.nvim_get_current_buf()
     M.stop()
 
     options = vim.tbl_deep_extend('keep', options or {}, DEFAULT_OPTS)
 
-    local state = MULTI_CURSOR.make(buffer, positions, visuals, options)
+    local state = MULTI_CURSOR.make(buffer, positions, anchors, options)
     if #state.cursors == 0 then
         MULTI_CURSOR.remove(state)
         return

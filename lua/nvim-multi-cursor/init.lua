@@ -45,19 +45,11 @@ local function get_visual_block_ranges()
     return cursors, anchors, {cursors[i], anchors[i]}, mode
 end
 
-function M.start_on_visual_block(options)
-    local cursors, anchors, current, mode = get_visual_block_ranges()
-    if cursors then
-        UTILS().set_visual_range(current[1], current[2], mode)
-        return M.start(cursors, anchors, options)
-    end
-end
-
 function M.start_on_visual(options)
     local cursors, anchors, current, mode = get_visual_block_ranges()
     if cursors then
-        vim.api.nvim_win_set_cursor(0, {current[1][1]+1, current[1][2]})
-        return M.start(cursors, nil, options)
+        UTILS().set_visual_range(current[2], current[1], mode)
+        return M.start(cursors, anchors, options)
     end
 end
 
@@ -69,7 +61,7 @@ function M.visual_block_insert(options)
 end
 
 function M.visual_block_change(options)
-    if M.start_on_visual_block(options) then
+    if M.start_on_visual(options) then
         vim.api.nvim_feedkeys('c', 't', false)
         UTILS().wait_for_normal_mode(M.stop)
     end
@@ -155,32 +147,5 @@ function M.start_at_regex(regex, replace, range, options)
         UTILS().wait_for_normal_mode(M.stop)
     end
 end
-
-local last_pos = nil
-vim.api.nvim_create_user_command(
-    'MultipleCursorsRegex',
-    function(opts)
-        M.start_at_regex(opts.args, opts.bang, {opts.line1, opts.line2})
-    end,
-    {bang=true, nargs='?', range='%', addr='lines', preview = function(opts, preview_ns, preview_buf)
-        if vim.o.incsearch then
-            last_pos = last_pos or vim.api.nvim_win_get_cursor(0)
-            vim.schedule(function()
-                local regex = opts.args
-                if regex == '' then
-                    regex = vim.fn.getreg('/')
-                end
-
-                -- restore the cursor
-                vim.fn.search(regex, 'cwz')
-                vim.fn.setreg('/', regex)
-                vim.o.hlsearch = true
-                vim.cmd('redraw!')
-                vim.api.nvim_win_set_cursor(0, last_pos)
-            end)
-        end
-    end}
-)
-
 
 return M
