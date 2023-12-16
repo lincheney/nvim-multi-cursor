@@ -18,7 +18,7 @@ What features (or lack thereof) this plugin has:
 * no new mappings
     * there are [functions](#usage) to add cursors that *you* can assign to mappings though
 * many things work
-* [many things don't work](#caveats-and-things-that-don-t-work-and-workarounds)
+* [many things don't work](#caveats-and-things-that-dont-work-and-workarounds)
 
 ## Usage
 
