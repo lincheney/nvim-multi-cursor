@@ -83,6 +83,7 @@ The following highlight groups can be configured:
     * `feedkeys()`
         * note that `feedkeys("...", "t")` *does* work
 * anything that makes and edits and then immediately switches buffer/window
+* jumplist, changelist etc will not work well
 * undo works "most of the time", but occasionally it will not
 * pasting works most of the time
 * backspacing in replace-mode, and similar, does not work
