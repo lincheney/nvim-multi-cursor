@@ -58,7 +58,7 @@ local function process_event(state, args)
     elseif text_changed and state.undo_seq ~= undo_seq and (state.real_cursor.undo_pos[undo_seq] or undo_seq ~= undotree.seq_last) then
         -- don't repeat undo/redo
         -- restore the cursor positions instead
-        MULTI_CURSOR.restore_undo_pos(state, undo_seq)
+        MULTI_CURSOR.restore_undo_pos(state, undotree)
 
     elseif text_changed and state.changes
         and not (mode == 'n' and (keys:match('g?[pP]$') or keys:match('".g?[gP]$'))) -- not pasting

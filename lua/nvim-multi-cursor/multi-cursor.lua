@@ -160,7 +160,37 @@ function M.save(self, undotree, mode)
     return #self.cursors > 0
 end
 
-function M.restore_undo_pos(self, undo_seq)
+function M.restore_undo_pos(self, undotree)
+    -- do something like undojoin
+    -- find the closest undo state where we actually have position information
+
+    local undo_seq = undotree.seq_cur
+
+    if not self.real_cursor.undo_pos[undo_seq] then
+        local redo = undo_seq > self.undo_seq
+        local upper = redo and math.huge or undo_seq
+        local lower = redo and undo_seq or 0
+        local best = nil
+
+        local seqs = vim.tbl_map(function(x) return x.seq end, undotree.entries)
+        table.insert(seqs, 0)
+        for i, seq in ipairs(seqs) do
+            if lower <= seq and seq <= upper and self.real_cursor.undo_pos[seq] then
+                if redo then
+                    upper = seq
+                else
+                    lower = seq
+                end
+                best = seq
+            end
+        end
+
+        if best and best ~= undo_seq then
+            vim.cmd('undo '..best)
+            undo_seq = best
+        end
+    end
+
     for i, cursor in ipairs(self.cursors) do
         CURSOR.restore_undo_pos(cursor, undo_seq, CONSTANTS.CHANGED_HIGHLIGHT)
     end
