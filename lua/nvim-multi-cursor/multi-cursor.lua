@@ -32,7 +32,7 @@ end
 function M.remove(self)
     vim.api.nvim_buf_clear_namespace(self.buffer, CONSTANTS.NAMESPACE, 0, -1)
     if self.autocmd then
-        vim.api.nvim_del_autocmd(self.autocmd)
+        pcall(vim.api.nvim_del_autocmd, self.autocmd)
     end
     for i, cursor in ipairs(self.cursors) do
         CURSOR.remove(cursor)
