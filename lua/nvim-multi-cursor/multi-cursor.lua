@@ -27,7 +27,7 @@ function M.make(buffer, cursors, anchors, options)
     for i = 1, #cursors do
         table.insert(self.cursors, CURSOR.make(cursors[i], anchors and anchors[i], self.real_cursor.curswant, mode))
     end
-    M.save(self, vim.fn.undotree())
+    M.save(self)
     return self
 end
 
@@ -99,7 +99,7 @@ function M.play_keys(self, keys, undojoin, new_mode)
     REAL_CURSOR._save_and_restore.position.save(self.real_cursor)
 end
 
-function M.save(self, undotree, mode)
+function M.save(self, mode)
     mode = mode or vim.api.nvim_get_mode().mode
 
     -- restore the mode as well
@@ -146,6 +146,7 @@ function M.save(self, undotree, mode)
         end
     end
 
+    local undotree = vim.fn.undotree()
     -- record undo positions
     REAL_CURSOR.save_undo_pos(self.real_cursor, undotree.seq_cur, pos)
     for i, cursor in ipairs(self.cursors) do

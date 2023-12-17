@@ -85,7 +85,7 @@ local function process_event(state, args)
         MULTI_CURSOR.clear_visual(state)
     end
 
-    if not MULTI_CURSOR.save(state, undotree, mode) then
+    if not MULTI_CURSOR.save(state, mode) then
         M.stop()
     end
     state.recursion = false
