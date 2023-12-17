@@ -104,5 +104,5 @@ The following highlight groups can be configured:
 * `leap.nvim` works sometimes, but mostly not so you should disable it while using multiple cursors
     * same goes for `flit.nvim`
     * TODO how to disable it temporarily?
-* `nvim-surround` does not work in visual mode
+* ~`nvim-surround` does not work in visual mode~
 * probably other stuff

@@ -111,7 +111,24 @@ function M.start(positions, anchors, options)
         'TextChangedI',
         'ModeChanged',
         'WinEnter',
-    }, {buffer=buffer, callback=function(args) process_event(state, args) end})
+    }, {buffer=buffer, callback=function(args)
+        if not state.recursion then
+            local interval = 50
+            local cb
+            cb = function(later)
+                -- defer processing if we are in the middle of another vim or lua callback
+                if later or vim.fn.expand('<stack>') ~= '' or debug.getinfo(2, 'f') then
+                    vim.defer_fn(function()
+                        -- the stack in schedule() is cleaner
+                        vim.schedule(cb)
+                    end, later or interval)
+                else
+                    process_event(state, args)
+                end
+            end
+            cb(0)
+        end
+    end})
 
     vim.api.nvim_buf_attach(state.buffer, false, {
         on_bytes = function(type, bufnr, tick, start_row, start_col, offset, old_end_row, old_end_col, old_len, end_row, end_col, len)
