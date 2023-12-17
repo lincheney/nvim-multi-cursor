@@ -58,7 +58,7 @@ local function process_event(state, args)
         MULTI_CURSOR.restore_undo_pos(state, undo_seq)
 
     elseif text_changed and state.changes
-        and not keys:match('^g?[pP]$') and not keys:match('^".g?[gP]$') -- not pasting
+        and not keys:match('g?[pP]$') and not keys:match('".g?[gP]$') -- not pasting
         and vim.version.cmp(state.changes.start, state.changes.finish) < 0
         and vim.version.cmp(state.changes.start, {edit_region[1], edit_region[2]}) >= 0
         and vim.version.cmp(state.changes.finish, {edit_region[3].end_row, edit_region[3].end_col}) <= 0
