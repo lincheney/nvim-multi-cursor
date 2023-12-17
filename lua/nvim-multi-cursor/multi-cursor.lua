@@ -12,6 +12,8 @@ function M.make(buffer, cursors, anchors, options)
         cursors = {},
         real_cursor = REAL_CURSOR.make(),
         done = false,
+        process_interval = 50,
+        event_queue = {},
 
         autoindent = vim.bo.autoindent,
         indentkeys = vim.bo.indentkeys,

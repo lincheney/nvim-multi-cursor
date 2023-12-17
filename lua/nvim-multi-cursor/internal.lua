@@ -88,6 +88,33 @@ local function process_event(state, args)
     state.recursion = false
 end
 
+local function process_event_soon(state, args)
+    if state.recursion or state.done or vim.api.nvim_get_current_buf() ~= state.buffer then
+        return
+    end
+
+    table.insert(state.event_queue, args)
+
+    local cb
+    cb = function(interval)
+        if #state.event_queue == 0 or state.done or vim.api.nvim_get_current_buf() ~= state.buffer then
+            return
+        -- defer processing if we are in the middle of another vim or lua callback
+        elseif vim.fn.expand('<stack>') ~= '' or debug.getinfo(2, 'f') then
+            vim.defer_fn(function()
+                -- the stack in schedule() is cleaner
+                vim.schedule(cb)
+            end, state.process_interval)
+        else
+            for i, a in ipairs(state.event_queue) do
+                process_event(state, a)
+                state.event_queue[i] = nil
+            end
+        end
+    end
+    vim.schedule(cb)
+end
+
 function M.start(positions, anchors, options)
     local buffer = vim.api.nvim_get_current_buf()
     M.stop()
@@ -112,22 +139,7 @@ function M.start(positions, anchors, options)
         'ModeChanged',
         'WinEnter',
     }, {buffer=buffer, callback=function(args)
-        if not state.recursion then
-            local interval = 50
-            local cb
-            cb = function(later)
-                -- defer processing if we are in the middle of another vim or lua callback
-                if later or vim.fn.expand('<stack>') ~= '' or debug.getinfo(2, 'f') then
-                    vim.defer_fn(function()
-                        -- the stack in schedule() is cleaner
-                        vim.schedule(cb)
-                    end, later or interval)
-                else
-                    process_event(state, args)
-                end
-            end
-            cb(0)
-        end
+        process_event_soon(state, args)
     end})
 
     vim.api.nvim_buf_attach(state.buffer, false, {
