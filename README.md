@@ -81,12 +81,13 @@ The following highlight groups can be configured:
     * `vim.schedule()`
     * `feedkeys()`
         * note that `feedkeys("...", "t")` *does* work
+* anything that makes and edits and then immediately switches buffer/window
 * undo works "most of the time", but rarely it will not
 * backspacing in replace-mode, and similar, does not work
 * only the following marks are supported, others will not work well
     * `<`, `>`, `[`, `]`
 * completion should work most of the time
-    * `nvim-cmp` should work most of the time
+    * [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) should work most of the time
         * `nvim-cmp` is disabled by default when recording macros, you have to enable it:
             ```lua
             require('cmp').setup{
@@ -101,8 +102,9 @@ The following highlight groups can be configured:
             }
             ```
         * snippets do not work
-* `leap.nvim` works sometimes, but mostly not so you should disable it while using multiple cursors
-    * same goes for `flit.nvim`
+* [leap.nvim](https://github.com/ggandor/leap.nvim) works sometimes, but mostly not so you should disable it while using multiple cursors
+    * same goes for [flit.nvim](https://github.com/ggandor/flit.nvim)
     * TODO how to disable it temporarily?
-* ~`nvim-surround` does not work in visual mode~
+* [nvim-surround](https://github.com/kylechui/nvim-surround) when surrounding with function
+    * and others that prompt for input
 * probably other stuff
