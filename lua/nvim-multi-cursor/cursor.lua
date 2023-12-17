@@ -141,8 +141,8 @@ M._save_and_restore = {
         end,
         restore = function(self, args)
             if UTILS.is_visual(args.old_mode) then
-                if self.visual then
-                    local mark = UTILS.get_mark(self.visual, true)
+                local mark = self.visual and UTILS.get_mark(self.visual, true)
+                if mark then
                     local cursor = {mark[3].end_row, mark[3].end_col-1}
                     if mark[1] ~= cursor[1] or mark[2] ~= cursor[2]+1 then
                         UTILS.save_and_restore_cursor(function()
