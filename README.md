@@ -9,9 +9,10 @@ the keystrokes recorded into a macro are played back at each "cursor" position i
 Why you don't really need multi-cursor:
 * simple edits are usually faster with visual(-block) mode
 * complex edits are easy to screw up
-* vim substitution (`:s/`) handles a lot of the use cases where you think you need this
+* vim substitution (`:s/`) + `set incsearch` handles a lot of the use cases where you think you need this
 * same with dot-repeat maybe with `cgn`
 * maybe you should just learn macros
+* or use [live-command.nvim](https://github.com/smjonas/live-command.nvim)
 
 What features (or lack thereof) this plugin has:
 * no new modes. Existing vim modes *mostly* just work.
@@ -82,7 +83,8 @@ The following highlight groups can be configured:
     * `feedkeys()`
         * note that `feedkeys("...", "t")` *does* work
 * anything that makes and edits and then immediately switches buffer/window
-* undo works "most of the time", but rarely it will not
+* undo works "most of the time", but occasionally it will not
+* pasting works most of the time
 * backspacing in replace-mode, and similar, does not work
 * only the following marks are supported, others will not work well
     * `<`, `>`, `[`, `]`
