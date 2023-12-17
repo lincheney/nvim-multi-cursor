@@ -1,6 +1,7 @@
 local M = {}
 
 local UTILS = require('nvim-multi-cursor.utils')
+local CONSTANTS = require('nvim-multi-cursor.constants')
 local MULTI_CURSOR = require('nvim-multi-cursor.multi-cursor')
 
 local DEFAULT_OPTS = {
@@ -48,6 +49,8 @@ local function process_event(state, args)
         keys = vim.fn.getreg(state.register)
         vim.cmd('normal! q'..state.register)
     end)
+    -- remove nop
+    keys = keys:gsub(CONSTANTS.NOP, '')
 
     if args.event == 'WinEnter' then
         -- don't run these keys

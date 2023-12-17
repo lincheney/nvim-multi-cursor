@@ -47,9 +47,6 @@ end
 
 
 function M.play_keys(self, keys, undojoin, new_mode)
-    -- remove nop
-    keys = keys:gsub(CONSTANTS.NOP, '')
-
     if self.mode == 'i' or self.mode == 'R' then
         keys = self.mode .. UTILS.vim_escape(CONSTANTS.RESTORE_PLUG) .. keys
     elseif keys:match('^%s') then
