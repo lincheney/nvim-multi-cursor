@@ -118,10 +118,18 @@ function M.start(positions, anchors, options)
             if state.done then
                 return state.done
             end
-            state.changes = {
+            local changes = {
                 start = {start_row, start_col},
                 finish = {start_row+end_row, start_col+end_col},
             }
+            if state.changes then
+                -- merge these changes together
+                state.changes.start = vim.version.cmp(state.changes.start, changes.start) < 0 and state.changes.start or changes.start
+                state.changes.finish = vim.version.cmp(state.changes.finish, changes.finish) > 0 and state.changes.finish or changes.finish
+            else
+                state.changes = changes
+            end
+
             local mark = UTILS.get_mark(state.real_cursor.edit_region, true)
             if vim.version.cmp({mark[1], mark[2]}, {mark[3].end_row, mark[3].end_col}) == 0 and old_len ~= 0 then
                 -- this is an invalid change
