@@ -84,6 +84,9 @@ function M.play_keys(self, keys, undojoin, new_mode)
 
         for i, cursor in ipairs(self.cursors) do
             CURSOR.play_keys(cursor, self.register, keys, undojoin, self.mode, new_mode)
+            if self.done then
+                break
+            end
         end
 
         -- teardown
@@ -96,10 +99,14 @@ function M.play_keys(self, keys, undojoin, new_mode)
 
     end, mode)
 
-    REAL_CURSOR._save_and_restore.position.save(self.real_cursor)
 end
 
 function M.save(self, mode)
+    if self.done then
+        M.remove(self)
+        return
+    end
+
     mode = mode or vim.api.nvim_get_mode().mode
 
     -- restore the mode as well

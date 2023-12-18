@@ -77,7 +77,6 @@ The following highlight groups can be configured:
 
 * mappings/commands that are stateful or contextual or asynchronous
 * anything that does not behave well with macros
-* anything that does not behave well with `silent!` (which ignores mapping errors)
 * anything that relies on asynchronous execution, for example:
     * `vim.schedule()`
     * `feedkeys()`
@@ -105,9 +104,8 @@ The following highlight groups can be configured:
             }
             ```
         * snippets do not work
-* [leap.nvim](https://github.com/ggandor/leap.nvim) works sometimes, but mostly not so you should disable it while using multiple cursors
+* [leap.nvim](https://github.com/ggandor/leap.nvim) should mostly work
     * same goes for [flit.nvim](https://github.com/ggandor/flit.nvim)
-    * TODO how to disable it temporarily?
 * [nvim-surround](https://github.com/kylechui/nvim-surround) when surrounding with function
     * and others that prompt for input
 * probably other stuff

@@ -219,14 +219,19 @@ function M.restore_and_save(self, cb, old_mode, new_mode)
     end
 end
 
+local function feedkeys(keys)
+    vim.api.nvim_feedkeys(keys, 'itx', false)
+end
+
 function M.play_keys(self, register, keys, undojoin, old_mode, new_mode)
     -- get to normal mode
-    vim.cmd(UTILS.vim_escape('normal! <esc>'))
+    if vim.api.nvim_get_mode().mode ~= 'n' then
+        feedkeys(UTILS.vim_escape('<esc>'))
+    end
 
     M.restore_and_save(self, function()
         -- execute the keys
-        vim.fn.setreg(register, keys)
-        vim.cmd((undojoin and 'undojoin | ' or '')..'silent! normal! @'..register)
+        feedkeys(keys)
     end, old_mode, new_mode)
 end
 

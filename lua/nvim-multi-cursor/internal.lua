@@ -3,6 +3,7 @@ local M = {}
 local UTILS = require('nvim-multi-cursor.utils')
 local CONSTANTS = require('nvim-multi-cursor.constants')
 local MULTI_CURSOR = require('nvim-multi-cursor.multi-cursor')
+local REAL_CURSOR = require('nvim-multi-cursor.real-cursor')
 
 local DEFAULT_OPTS = {
     register = 'y',
@@ -10,7 +11,13 @@ local DEFAULT_OPTS = {
 
 local STATES = {}
 
-local function process_event(state, args)
+local PLAY_KEYS_ARGS = nil
+function M._play_keys()
+    MULTI_CURSOR.play_keys(unpack(PROCESS_EVENTS_ARGS))
+    PROCESS_EVENTS_ARGS = nil
+end
+
+local function process_event(state, args, mode)
     local text_changed = args.event:match('^TextChanged')
 
     if not text_changed and vim.b.changedtick ~= state.changedtick then
@@ -31,12 +38,6 @@ local function process_event(state, args)
         end
     end
 
-    if state.recursion then
-        return
-    end
-    state.recursion = true
-
-    local mode = vim.api.nvim_get_mode().mode
     local undotree = vim.fn.undotree()
     local undo_seq = undotree.seq_cur
 
@@ -47,7 +48,6 @@ local function process_event(state, args)
     UTILS.save_and_restore_cursor(function()
         vim.cmd('normal! q')
         keys = vim.fn.getreg(state.register)
-        vim.cmd('normal! q'..state.register)
     end)
     -- remove nop
     keys = keys:gsub(CONSTANTS.NOP, '')
@@ -78,20 +78,28 @@ local function process_event(state, args)
         -- is this undo the most recent one
         local recent_change = (undotree.seq_last == undotree.seq_cur) and args.event:match('^TextChanged')
         -- run the macro at each position
-        MULTI_CURSOR.play_keys(state, keys, recent_change, mode)
+        UTILS.save_and_restore_cursor(function()
+            PROCESS_EVENTS_ARGS = {state, keys, recent_change, mode}
+            -- call play_keys() in a normal!
+            -- otherwise the feedkeys(..., "itx") does weird things in insert mode
+            vim.cmd(vim_escape('normal! <cmd>lua require("nvim-multi-cursor.internal")._play_keys()<cr>'))
+        end)
 
     elseif not UTILS.is_visual(mode) then
         -- clear visual highlights
         MULTI_CURSOR.clear_visual(state)
     end
 
+    -- resume recording the macro
+    vim.cmd('normal! q'..state.register)
+
     if not MULTI_CURSOR.save(state, mode) then
         M.stop()
     end
-    state.recursion = false
 end
 
-local function process_event_soon(state, args)
+-- call process_events when there are no other callbacks running
+local function process_events_soon(state, args)
     if state.recursion or state.done or vim.api.nvim_get_current_buf() ~= state.buffer then
         return
     end
@@ -100,7 +108,7 @@ local function process_event_soon(state, args)
 
     local cb
     cb = function(interval)
-        if #state.event_queue == 0 or state.done or vim.api.nvim_get_current_buf() ~= state.buffer then
+        if state.recursion or #state.event_queue == 0 or state.done or vim.api.nvim_get_current_buf() ~= state.buffer then
             return
         -- defer processing if we are in the middle of another vim or lua callback
         elseif vim.fn.expand('<stack>') ~= '' or debug.getinfo(2, 'f') then
@@ -109,10 +117,17 @@ local function process_event_soon(state, args)
                 vim.schedule(cb)
             end, state.process_interval)
         else
-            for i, a in ipairs(state.event_queue) do
-                process_event(state, a)
+            state.recursion = true
+
+            -- get the mode now, as process_event() may change it
+            local mode = vim.api.nvim_get_mode().mode
+            -- process each event
+            for i, ev in ipairs(state.event_queue) do
+                process_event(state, ev, mode)
                 state.event_queue[i] = nil
             end
+
+            state.recursion = false
         end
     end
     vim.schedule(cb)
@@ -142,7 +157,7 @@ function M.start(positions, anchors, options)
         'ModeChanged',
         'WinEnter',
     }, {buffer=buffer, callback=function(args)
-        process_event_soon(state, args)
+        process_events_soon(state, args)
     end})
 
     vim.api.nvim_buf_attach(state.buffer, false, {
