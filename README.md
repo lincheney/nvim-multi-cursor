@@ -34,6 +34,8 @@ All provided arguments should be 0-indexed (i.e. line/column numbers start at 0)
     * `positions` is a list of cursor positions
     * `anchors` is an optional list of 2-tuples representing the anchor of a visual selection (where the cursor is on the other end)
         * use this if you are starting in visual mode
+        * these are ignored if not in visual mode
+        * if in visual mode and anchors are not provided, then each cursor gets a 1-char selection at the cursor position
     * `options` a table of options including:
         * `register` the register that will be used to record the macro (default `y`)
         * `on_leave` a function that will be called when multi cursor is stopped
@@ -59,6 +61,7 @@ All provided arguments should be 0-indexed (i.e. line/column numbers start at 0)
     * place visual selections where `regex` matches (similar-ish to `:s/`)
     * `regex` the vim regex
     * `replace` set to true to delete the matching text and enter insert mode (as if pressing `c`)
+        * multi cursor stops when insert mode stops
     * `range` 2-tuple of a line range to search for matches, otherwise search the whole file
         * these are *1-indexed*
 
@@ -106,6 +109,6 @@ The following highlight groups can be configured:
         * snippets do not work
 * [leap.nvim](https://github.com/ggandor/leap.nvim) should mostly work
     * same goes for [flit.nvim](https://github.com/ggandor/flit.nvim)
-* [nvim-surround](https://github.com/kylechui/nvim-surround) when surrounding with function
-    * and others that prompt for input
+* [nvim-surround](https://github.com/kylechui/nvim-surround) mostly works
+    * surrounding with function and others that prompt for input do not work
 * probably other stuff
