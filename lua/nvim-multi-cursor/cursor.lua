@@ -223,7 +223,7 @@ local function feedkeys(keys)
     vim.api.nvim_feedkeys(keys, 'itx', false)
 end
 
-function M.play_keys(self, register, keys, old_mode, new_mode)
+function M.play_keys(self, keys, old_mode, new_mode)
     -- get to normal mode
     if vim.api.nvim_get_mode().mode ~= 'n' then
         feedkeys(UTILS.vim_escape('<esc>'))

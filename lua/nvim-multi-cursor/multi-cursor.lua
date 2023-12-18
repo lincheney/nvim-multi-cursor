@@ -83,7 +83,7 @@ function M.play_keys(self, keys, new_mode)
         vim.cmd('noautocmd call nvim_set_current_win('..scratch..')')
 
         for i, cursor in ipairs(self.cursors) do
-            CURSOR.play_keys(cursor, self.register, keys, self.mode, new_mode)
+            CURSOR.play_keys(cursor, keys, self.mode, new_mode)
             if self.done then
                 break
             end
@@ -97,7 +97,7 @@ function M.play_keys(self, keys, new_mode)
         -- reset to normal mode
         vim.cmd(UTILS.vim_escape('normal! <esc>'))
 
-    end, mode)
+    end)
 
 end
 

@@ -44,7 +44,7 @@ M._save_and_restore = {
         save = function(self)
             self.visual = {UTILS.get_visual_range()}
         end,
-        restore = function(self, args)
+        restore = function(self)
             if #self.visual > 0 then
                 UTILS.set_visual_range(self.visual[1][1], self.visual[1][2], self.visual[2])
             end
@@ -58,13 +58,13 @@ M._save_and_restore = {
 
 local cursor_attrs = vim.tbl_keys(M._save_and_restore)
 
-function M.save_and_restore(self, cb, mode)
+function M.save_and_restore(self, cb)
     for i = 1, #cursor_attrs do
-        M._save_and_restore[cursor_attrs[i]].save(self, {mode=mode})
+        M._save_and_restore[cursor_attrs[i]].save(self)
     end
     cb()
     for i = #cursor_attrs, 1, -1 do
-        M._save_and_restore[cursor_attrs[i]].restore(self, {mode=mode})
+        M._save_and_restore[cursor_attrs[i]].restore(self)
     end
 end
 

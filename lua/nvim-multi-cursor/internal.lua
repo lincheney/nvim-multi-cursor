@@ -3,7 +3,6 @@ local M = {}
 local UTILS = require('nvim-multi-cursor.utils')
 local CONSTANTS = require('nvim-multi-cursor.constants')
 local MULTI_CURSOR = require('nvim-multi-cursor.multi-cursor')
-local REAL_CURSOR = require('nvim-multi-cursor.real-cursor')
 
 local DEFAULT_OPTS = {
     register = 'y',
@@ -13,8 +12,8 @@ local STATES = {}
 
 local PLAY_KEYS_ARGS = nil
 function M._play_keys()
-    MULTI_CURSOR.play_keys(unpack(PROCESS_EVENTS_ARGS))
-    PROCESS_EVENTS_ARGS = nil
+    MULTI_CURSOR.play_keys(unpack(PLAY_KEYS_ARGS))
+    PLAY_KEYS_ARGS = nil
 end
 
 local function process_event(state, args, mode)
@@ -77,7 +76,7 @@ local function process_event(state, args, mode)
     elseif #keys > 0 then
         -- run the macro at each position
         UTILS.save_and_restore_cursor(function()
-            PROCESS_EVENTS_ARGS = {state, keys, mode}
+            PLAY_KEYS_ARGS = {state, keys, mode}
             -- call play_keys() in a normal!
             -- otherwise the feedkeys(..., "itx") does weird things in insert mode
             vim.cmd(vim_escape('normal! <cmd>lua require("nvim-multi-cursor.internal")._play_keys()<cr>'))
@@ -105,7 +104,7 @@ local function process_events_soon(state, args)
     table.insert(state.event_queue, args)
 
     local cb
-    cb = function(interval)
+    cb = function()
         if state.recursion or #state.event_queue == 0 or state.done or vim.api.nvim_get_current_buf() ~= state.buffer then
             return
         -- defer processing if we are in the middle of another vim or lua callback
