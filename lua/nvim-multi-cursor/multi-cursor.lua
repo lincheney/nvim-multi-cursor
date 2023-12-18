@@ -46,7 +46,7 @@ function M.remove(self)
 end
 
 
-function M.play_keys(self, keys, undojoin, new_mode)
+function M.play_keys(self, keys, new_mode)
     if self.mode == 'i' or self.mode == 'R' then
         keys = self.mode .. UTILS.vim_escape(CONSTANTS.RESTORE_PLUG) .. keys
     elseif keys:match('^%s') then
@@ -83,7 +83,7 @@ function M.play_keys(self, keys, undojoin, new_mode)
         vim.cmd('noautocmd call nvim_set_current_win('..scratch..')')
 
         for i, cursor in ipairs(self.cursors) do
-            CURSOR.play_keys(cursor, self.register, keys, undojoin, self.mode, new_mode)
+            CURSOR.play_keys(cursor, self.register, keys, self.mode, new_mode)
             if self.done then
                 break
             end

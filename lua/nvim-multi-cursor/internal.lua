@@ -75,11 +75,9 @@ local function process_event(state, args, mode)
         end
 
     elseif #keys > 0 then
-        -- is this undo the most recent one
-        local recent_change = (undotree.seq_last == undotree.seq_cur) and args.event:match('^TextChanged')
         -- run the macro at each position
         UTILS.save_and_restore_cursor(function()
-            PROCESS_EVENTS_ARGS = {state, keys, recent_change, mode}
+            PROCESS_EVENTS_ARGS = {state, keys, mode}
             -- call play_keys() in a normal!
             -- otherwise the feedkeys(..., "itx") does weird things in insert mode
             vim.cmd(vim_escape('normal! <cmd>lua require("nvim-multi-cursor.internal")._play_keys()<cr>'))
