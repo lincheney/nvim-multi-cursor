@@ -16,6 +16,10 @@ function M.is_active(...)
     return INTERNAL().is_active(...)
 end
 
+function M.set_on_leave(...)
+    return INTERNAL().set_on_leave(...)
+end
+
 local function get_visual_block_ranges()
     local range, mode = UTILS().get_visual_range()
     if not range then

@@ -206,4 +206,9 @@ function M.is_active()
     end
 end
 
+function M.set_on_leave(buffer, on_leave)
+    local buffer = buffer == 0 and vim.api.nvim_get_current_buf() or buffer
+    STATES[buffer].on_leave = on_leave
+end
+
 return M
