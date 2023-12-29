@@ -89,6 +89,7 @@ The following highlight groups can be configured:
 * undo works "most of the time", but occasionally it will not
 * pasting works most of the time
 * backspacing in replace-mode, and similar, does not work
+* autoindent in insert mode does not work
 * only the following marks are supported, others will not work well
     * `<`, `>`, `[`, `]`
 * completion should work most of the time
