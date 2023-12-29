@@ -120,7 +120,9 @@ function M.save(self, mode)
             end
             local start = UTILS.get_mark(self.real_cursor.insert_start)
             vim.api.nvim_win_set_cursor(0, {start[1]+1, start[2]})
+            vim.cmd[[normal! i]]
         end
+
         -- restart the insert mode
         vim.cmd[[startinsert]]
     end
