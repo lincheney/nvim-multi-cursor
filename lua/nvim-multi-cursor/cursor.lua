@@ -3,27 +3,6 @@ local M = {}
 local UTILS = require('nvim-multi-cursor.utils')
 local CONSTANTS = require('nvim-multi-cursor.constants')
 
-local RECORDED_INSERT_MODE = nil
-vim.keymap.set('', CONSTANTS.RECORD_PLUG, CONSTANTS.NOP)
-vim.keymap.set('i', CONSTANTS.RECORD_PLUG, function()
-    RECORDED_INSERT_MODE = {
-        -- record the cursor position as it will jump back after insert mode
-        vim.api.nvim_win_get_cursor(0),
-        -- record the line; indentation may reset
-        vim.api.nvim_get_current_line(),
-    }
-end)
-vim.keymap.set('i', CONSTANTS.RESTORE_PLUG, function()
-    if RECORDED_INSERT_MODE then
-        vim.api.nvim_win_set_cursor(0, {RECORDED_INSERT_MODE[1][1], RECORDED_INSERT_MODE[1][2]})
-        if RECORDED_INSERT_MODE[1][3] then
-            vim.fn.winrestview({curswant=RECORDED_INSERT_MODE[1][3]})
-        end
-        RECORDED_INSERT_MODE = nil
-    end
-end)
-
-
 function M.make(pos, anchor, curswant, mode)
     local self = {
         pos = UTILS.create_cursor_highlight_mark(pos),
@@ -83,17 +62,15 @@ end
 M._save_and_restore = {
     position = {
         save = function(self, args)
-            self.curpos = args.pos
-            if self.curpos then
-                self.curswant = self.curpos[2]
-            else
-                self.curpos, self.curswant = UTILS.getcurpos()
-            end
+            self.curpos, self.curswant = UTILS.getcurpos()
 
             self.current_line = nil
-            if args.line and args.new_mode == 'i' and args.line:match('^%s+$') and self.curpos[2] == #args.line then
-                self.current_line = args.line
-                vim.api.nvim_buf_set_lines(0, self.curpos[1], self.curpos[1]+1, true, {self.current_line})
+            if args.new_mode == 'i' then
+                local line = vim.api.nvim_get_current_line()
+                if line:match('^%s+$') and self.curpos[2] == #line then
+                    self.current_line = line
+                    vim.api.nvim_buf_set_lines(0, self.curpos[1], self.curpos[1]+1, true, {self.current_line})
+                end
             end
 
             if args.old_mode ~= 'i' and args.new_mode == 'i' then
@@ -118,8 +95,10 @@ M._save_and_restore = {
                     self.insert_start = UTILS.create_mark(UTILS.get_mark(self.edit_region), nil)
                 end
                 local start = UTILS.get_mark(self.insert_start)
-                vim.api.nvim_win_set_cursor(0, {start[1]+1, start[2]})
-                RECORDED_INSERT_MODE = {{pos[1]+1, pos[2], self.curswant ~= pos[2] and self.curswant}}
+                vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
+                if self.curswant ~= pos[2] then
+                    vim.fn.winrestview({curswant=self.curswant})
+                end
 
             else
                 vim.api.nvim_win_set_cursor(0, {pos[1]+1, pos[2]})
@@ -196,9 +175,7 @@ M._save_and_restore = {
 
 local cursor_attrs = vim.tbl_keys(M._save_and_restore)
 
-function M.restore_and_save(self, cb, old_mode, new_mode)
-    RECORDED_INSERT_MODE = nil
-
+function M.restore(self, old_mode, new_mode)
     -- restore prev position etc
     for i = 1, #cursor_attrs do
         M._save_and_restore[cursor_attrs[i]].restore(self, {
@@ -206,33 +183,15 @@ function M.restore_and_save(self, cb, old_mode, new_mode)
             old_mode = old_mode,
         })
     end
+end
 
-    cb()
-
+function M.save(self, old_mode, new_mode)
     for i = #cursor_attrs, 1, -1 do
         M._save_and_restore[cursor_attrs[i]].save(self, {
             new_mode = new_mode,
             old_mode = old_mode,
-            line = RECORDED_INSERT_MODE and RECORDED_INSERT_MODE[2],
-            pos = RECORDED_INSERT_MODE and {RECORDED_INSERT_MODE[1][1]-1, RECORDED_INSERT_MODE[1][2]},
         })
     end
-end
-
-local function feedkeys(keys)
-    vim.api.nvim_feedkeys(keys, 'itx', false)
-end
-
-function M.play_keys(self, keys, old_mode, new_mode)
-    -- get to normal mode
-    if vim.api.nvim_get_mode().mode ~= 'n' then
-        feedkeys(UTILS.vim_escape('<esc>'))
-    end
-
-    M.restore_and_save(self, function()
-        -- execute the keys
-        feedkeys(keys)
-    end, old_mode, new_mode)
 end
 
 function M.save_undo_pos(self, undo_seq, pos)

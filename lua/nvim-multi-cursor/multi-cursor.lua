@@ -5,6 +5,24 @@ local CONSTANTS = require('nvim-multi-cursor.constants')
 local REAL_CURSOR = require('nvim-multi-cursor.real-cursor')
 local CURSOR = require('nvim-multi-cursor.cursor')
 
+local CURRENT_STATE_ARGS = nil
+vim.keymap.set('n', CONSTANTS.ESC_PLUG, '', {noremap=true})
+vim.keymap.set({'v', 'i'}, CONSTANTS.ESC_PLUG, '<esc>', {noremap=true})
+vim.keymap.set({'n', 'v', 'i'}, CONSTANTS.PRE_PLUG, function()
+    local state = CURRENT_STATE_ARGS[1]
+    local cursor = state.cursors[CURRENT_STATE_ARGS[2]]
+    local new_mode = CURRENT_STATE_ARGS[3]
+    CURSOR.restore(cursor, state.mode, new_mode)
+end)
+vim.keymap.set({'n', 'v', 'i'}, CONSTANTS.POST_PLUG, function()
+    local state = CURRENT_STATE_ARGS[1]
+    local cursor = state.cursors[CURRENT_STATE_ARGS[2]]
+    local new_mode = CURRENT_STATE_ARGS[3]
+    CURSOR.save(cursor, state.mode, new_mode)
+    -- go to next cursor
+    CURRENT_STATE_ARGS[2] = CURRENT_STATE_ARGS[2] + 1
+end)
+
 function M.make(buffer, cursors, anchors, options)
     local self = {
         buffer = buffer,
@@ -47,18 +65,14 @@ end
 
 
 function M.play_keys(self, keys, new_mode)
-    if self.mode == 'i' or self.mode == 'R' then
-        keys = self.mode .. UTILS.vim_escape(CONSTANTS.RESTORE_PLUG) .. keys
-    elseif keys:match('^%s') then
-        -- can't start with space, so prefix with 1?
-        keys = '1' .. keys
-    end
-
-    -- use a plug to get the self pos *before* we leave insert mode
-    -- since exiting insert mode moves the cursor
-    if new_mode == 'i' or new_mode == 'R' then
-        keys = keys .. UTILS.vim_escape(CONSTANTS.RECORD_PLUG .. '<esc>')
-    end
+    keys = table.concat({
+        UTILS.vim_escape(CONSTANTS.ESC_PLUG),
+        UTILS.vim_escape('i<esc>'), -- somehow this prevents extra undo breaks
+        (self.mode == 'i' or self.mode == 'R') and self.mode or '',
+        UTILS.vim_escape(CONSTANTS.PRE_PLUG),
+        keys,
+        UTILS.vim_escape(CONSTANTS.POST_PLUG),
+    }, '')
 
     REAL_CURSOR.save_and_restore(self.real_cursor, function()
 
@@ -82,12 +96,9 @@ function M.play_keys(self, keys, new_mode)
         local window = vim.api.nvim_get_current_win()
         vim.cmd('noautocmd call nvim_set_current_win('..scratch..')')
 
-        for i, cursor in ipairs(self.cursors) do
-            CURSOR.play_keys(cursor, keys, self.mode, new_mode)
-            if self.done then
-                break
-            end
-        end
+        keys = keys:rep(#self.cursors)
+        CURRENT_STATE_ARGS = {self, 1, new_mode}
+        vim.api.nvim_feedkeys(keys, 'itx', false)
 
         -- teardown
         vim.cmd('noautocmd call nvim_set_current_win('..window..')')

@@ -1,8 +1,9 @@
 local M = {}
 
 M.NAMESPACE = vim.api.nvim_create_namespace('nvim-multi-cursor.nvim')
-M.RECORD_PLUG = '<Plug>(nvim-multi-cursor-record_insert_mode)'
-M.RESTORE_PLUG = '<Plug>(nvim-multi-cursor-restore_insert_mode)'
+M.PRE_PLUG = '<Plug>NvimMultiCursorPre;'
+M.POST_PLUG = '<Plug>NvimMultiCursorPost;'
+M.ESC_PLUG = '<Plug>NvimMultiCursorEsc;'
 
 M.ALL_REGISTERS = vim.split("-/0123456789abcdefghijklmnopqrstuvwxyz", '')
 table.insert(M.ALL_REGISTERS, '')
