@@ -89,10 +89,16 @@ The following highlight groups can be configured:
 * undo "works" most of the time, but occasionally it will not
     * there may be more undo breaks/states than expected
 * pasting works most of the time
+    * except inside mappings
 * backspacing in replace-mode, and similar, does not work
 * autoindent in insert mode does not work
 * only the following marks are supported, others will not work well
     * `<`, `>`, `[`, `]`
+* anything about "previously inserted" text probably doesn't work
+    * e.g. `<c-a>` to `Insert previously inserted text.`
+* dot repeat somewhat works
+    * you *must* have https://github.com/tpope/vim-repeat
+    * but there's probably some broken stuff somewhere
 * completion should work most of the time
     * [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) should work most of the time
         * `nvim-cmp` is disabled by default when recording macros, you have to enable it:

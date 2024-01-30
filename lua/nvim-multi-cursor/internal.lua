@@ -16,6 +16,14 @@ function M._play_keys()
     PLAY_KEYS_ARGS = nil
 end
 
+vim.keymap.set('n', CONSTANTS.REPEAT_PLUG, function()
+    local state = STATES[vim.api.nvim_get_current_buf()]
+    if state then
+        -- just repeat the keys
+        return state.repeat_keys
+    end
+end, {expr=true, remap=true})
+
 local function process_event(state, args, mode)
     local text_changed = args.event:match('^TextChanged')
 
@@ -79,12 +87,29 @@ local function process_event(state, args, mode)
             PLAY_KEYS_ARGS = {state, keys, mode}
             -- call play_keys() in a normal!
             -- otherwise the feedkeys(..., "itx") does weird things in insert mode
-            vim.cmd(vim_escape('normal! <cmd>lua require("nvim-multi-cursor.internal")._play_keys()<cr>'))
+            vim.cmd(UTILS.vim_escape('normal! <cmd>lua require("nvim-multi-cursor.internal")._play_keys()<cr>'))
         end)
 
     elseif not UTILS.is_visual(mode) then
         -- clear visual highlights
         MULTI_CURSOR.clear_visual(state)
+    end
+
+    -- vim-repeat
+    if pcall(vim.fn['repeat#set'], UTILS.vim_escape(CONSTANTS.REPEAT_PLUG))
+        and keys ~= ''
+        and (text_changed or (state.mode == 'i' and mode ~= 'i'))
+        and vim.fn.maparg(keys, 'n') ~= '<Plug>(RepeatDot)'
+    then
+        if not state.repeat_append then
+            -- start of a new "change" block, clear the previous keys
+            state.repeat_keys = ''
+        end
+        state.repeat_keys = state.repeat_keys .. keys
+        state.repeat_append = true
+
+    elseif keys ~= '' then
+        state.repeat_append = false
     end
 
     -- resume recording the macro

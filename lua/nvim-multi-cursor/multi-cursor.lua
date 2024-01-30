@@ -33,6 +33,9 @@ function M.make(buffer, cursors, anchors, options)
         process_interval = 50,
         event_queue = {},
 
+        repeat_keys = '',
+        repeat_append = true,
+
         autoindent = vim.bo.autoindent,
         indentkeys = vim.bo.indentkeys,
     }
