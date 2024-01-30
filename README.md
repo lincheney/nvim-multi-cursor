@@ -24,10 +24,40 @@ What features (or lack thereof) this plugin has:
 ## Usage
 
 There are no mappings provided;
-however there is one "main" entrypoint to start using multiple cursors
+however there is one ["main" entrypoint](API) to start using multiple cursors
 and several "helpers" that emulate vim features.
 
 All provided arguments should be 0-indexed (i.e. line/column numbers start at 0).
+
+### Example mappings
+
+Here are some example mappings you can use
+```lua
+local NMC = require('nvim-multi-cursor')
+
+-- cursors on start of each selected line; similar to `:help v_b_I`
+vim.keymap.set('x', 'I', NMC.visual_block_insert)
+
+-- cursors on end of each selected line; similar to `:help v_b_A`
+vim.keymap.set('x', 'A', function()
+    vim.cmd[[normal! $]]
+    NMC.visual_block_append()
+end)
+
+-- delete selected text and put cursors on each line in insert mode; similar to `:help v_b_c`
+vim.keymap.set('x', 'C', NMC.visual_block_change)
+
+-- replace all occurrences of the selected text in this file and put a cursor at each
+vim.keymap.set('x', 'gr', function()
+    vim.cmd[[normal! y]]
+    local text = vim.fn.getreg('"')
+    local regex = '\\V'..text:gsub('\\', '\\\\'):gsub('\n', '\\n')
+    NMC.start_at_regex(regex, true)
+end)
+
+```
+
+### API
 
 * `require('nvim-multi-cursor').start(positions, anchors, options)`
     * this is the "main" entrypoint
@@ -89,7 +119,7 @@ The following highlight groups can be configured:
 * undo "works" most of the time, but occasionally it will not
     * there may be more undo breaks/states than expected
 * pasting works most of the time
-    * except inside mappings
+    * except maybe inside mappings
 * backspacing in replace-mode, and similar, does not work
 * autoindent in insert mode does not work
 * only the following marks are supported, others will not work well
@@ -118,5 +148,4 @@ The following highlight groups can be configured:
 * [leap.nvim](https://github.com/ggandor/leap.nvim) should mostly work
     * same goes for [flit.nvim](https://github.com/ggandor/flit.nvim)
 * [nvim-surround](https://github.com/kylechui/nvim-surround) mostly works
-    * surrounding with function and others that prompt for input do not work
 * probably other stuff
