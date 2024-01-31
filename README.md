@@ -118,6 +118,7 @@ The following highlight groups can be configured:
 * jumplist, changelist etc will not work well
 * undo "works" most of the time, but occasionally it will not
     * there may be more undo breaks/states than expected
+    * will not work if you have a mapping that does undo/redo *and* other changes
 * pasting works most of the time
     * except maybe inside mappings
 * backspacing in replace-mode, and similar, does not work
