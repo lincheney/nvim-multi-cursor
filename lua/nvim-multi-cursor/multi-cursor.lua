@@ -13,6 +13,8 @@ vim.keymap.set({'n', 'v', 'i'}, CONSTANTS.PRE_PLUG, function()
     local cursor = state.cursors[CURRENT_STATE_ARGS[2]]
     local new_mode = CURRENT_STATE_ARGS[3]
     CURSOR.restore(cursor, state.mode, new_mode)
+    -- reset repeat before the cursor is handled, in case it was a dot repeat
+    vim.fn['repeat#set'](UTILS.vim_escape(CONSTANTS.REPEAT_PLUG))
 end)
 vim.keymap.set({'n', 'v', 'i'}, CONSTANTS.POST_PLUG, function()
     local state = CURRENT_STATE_ARGS[1]
