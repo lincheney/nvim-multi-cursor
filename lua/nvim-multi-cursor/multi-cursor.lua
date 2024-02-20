@@ -81,34 +81,9 @@ function M.play_keys(self, keys, new_mode)
 
     REAL_CURSOR.save_and_restore(self.real_cursor, function()
 
-        -- make scratch window to apply our changes in
-        local scratch = vim.api.nvim_open_win(0, false, {
-            relative='editor',
-            row=0,
-            col=vim.o.columns,
-            height=1,
-            width=3,
-            focusable=false,
-            style='minimal',
-            zindex=1,
-        })
-        vim.wo[scratch].winblend = 100
-
-        local winhighlight = vim.wo.winhighlight
-        vim.wo.winhighlight = 'NormalNC:Normal'
-
-        -- visual range seems to be lost with nvim_win_call()
-        local window = vim.api.nvim_get_current_win()
-        vim.cmd('noautocmd call nvim_set_current_win('..scratch..')')
-
         keys = keys:rep(#self.cursors)
         CURRENT_STATE_ARGS = {self, 1, new_mode}
         vim.api.nvim_feedkeys(keys, 'itx', false)
-
-        -- teardown
-        vim.cmd('noautocmd call nvim_set_current_win('..window..')')
-        vim.api.nvim_win_close(scratch, true)
-        vim.wo.winhighlight = winhighlight
 
         -- reset to normal mode
         vim.cmd(UTILS.vim_escape('normal! <esc>'))
