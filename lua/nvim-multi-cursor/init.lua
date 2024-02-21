@@ -22,30 +22,38 @@ end
 
 local function get_visual_block_ranges()
     local range, mode = UTILS().get_visual_range()
+    -- range[1] is the anchor, range[2] is the cursor
     if not range then
         return
     end
 
-    local first = math.min(range[1][1], range[2][1])
-    local last = math.max(range[1][1], range[2][1])
+    local top    = math.min(range[1][1], range[2][1])
+    local bottom = math.max(range[1][1], range[2][1])
 
     local first_col = math.min(range[1][2], range[2][2])
     local last_col = math.max(range[1][2], range[2][2])
 
-    local cursors = {}
-    local anchors = {}
-    local lines = vim.api.nvim_buf_get_lines(0, first, last+1, false)
+    local left  = {}
+    local right = {}
+    local lines = vim.api.nvim_buf_get_lines(0, top, bottom+1, false)
     for i, line in ipairs(lines) do
-        if first_col == 0 then
-            table.insert(cursors, {first+i-1, 0})
-            table.insert(anchors, {first+i-1, 0})
-        elseif first_col < #line then
-            table.insert(cursors, {first+i-1, math.min(range[2][2], #line-1)})
-            table.insert(anchors, {first+i-1, math.min(range[1][2], #line-1)})
+        if last_col <= #line then
+            table.insert(left,  {top+i-1, math.max(0, math.min(first_col, #line-1))})
+            table.insert(right, {top+i-1, math.min(last_col, #line)})
         end
     end
 
-    local i = range[2][1] == first and 1 or #anchors
+    local cursors = left
+    local anchors = right
+    local i = 1
+    if first_col == range[1][2] then -- anchor is actually on the left
+        anchors, cursors = cursors, anchors
+    end
+
+    if bottom == range[2][1] then -- cursor is actually on the bottom
+        i = #cursors
+    end
+
     return cursors, anchors, {cursors[i], anchors[i]}, mode
 end
 
