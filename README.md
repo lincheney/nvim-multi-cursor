@@ -21,6 +21,25 @@ What features (or lack thereof) this plugin has:
 * many things work
 * [many things don't work](#caveats-and-things-that-dont-work-and-workarounds)
 
+## Example
+
+Changing a bunch of requires to imports in javascript:
+
+![demo](https://github.com/lincheney/nvim-multi-cursor/assets/1336117/ef6695d9-2e2b-40cf-88ac-03aee76db19c)
+
+Keystrokes: `ggVG<a-o>^cwimport<esc>f=dfejifrom <esc>wdsb<esc>`
+1. `ggVG` - select everything
+1. `<a-o>` - my own keymapping to start multi cursor
+   * something like `vim.keymap.set('x', '<a-o>', require('nvim-multi-cursor').start_on_visual)`
+1. `^` - start of line
+1. `cwimport<esc>` - change the word `const` to `import`
+1. `f=` - jump to the `=`
+1. `dfej` - delete to the `e` and select the one labelled `j` using [flit.nvim](https://github.com/ggandor/flit.nvim)
+1. `ifrom <esc>` - insert `from `
+1. `w` - move to next word, inside the brackets
+1. `dsb` - delete surrounding brackets using [nvim-surround](https://github.com/kylechui/nvim-surround)
+1. `<esc>` - stop multi cursor, calls `require('nvim-multi-cursor').stop()`
+
 ## Usage
 
 There are no mappings provided;
