@@ -168,4 +168,6 @@ The following highlight groups can be configured:
 * [leap.nvim](https://github.com/ggandor/leap.nvim) should mostly work
     * same goes for [flit.nvim](https://github.com/ggandor/flit.nvim)
 * [nvim-surround](https://github.com/kylechui/nvim-surround) mostly works
+* `inccommand` only applies to the "primary" cursor
+    * e.g. if you do `:s/abc/xyz`, the command preview will not be shown on all the other cursors
 * probably other stuff

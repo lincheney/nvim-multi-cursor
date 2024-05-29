@@ -25,6 +25,11 @@ vim.keymap.set('n', CONSTANTS.REPEAT_PLUG, function()
 end, {expr=true, remap=true})
 
 local function process_event(state, args, mode)
+    if mode == 'c' then
+        -- process after entire command line has been entered
+        return
+    end
+
     local text_changed = args.event:match('^TextChanged')
 
     if not text_changed and vim.b.changedtick ~= state.changedtick then
