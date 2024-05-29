@@ -14,7 +14,7 @@ vim.keymap.set({'n', 'v', 'i'}, CONSTANTS.PRE_PLUG, function()
     local new_mode = CURRENT_STATE_ARGS[3]
     CURSOR.restore(cursor, state.mode, new_mode)
     -- reset repeat before the cursor is handled, in case it was a dot repeat
-    vim.fn['repeat#set'](UTILS.vim_escape(CONSTANTS.REPEAT_PLUG))
+    pcall(vim.fn['repeat#set'], UTILS.vim_escape(CONSTANTS.REPEAT_PLUG))
 end)
 vim.keymap.set({'n', 'v', 'i'}, CONSTANTS.POST_PLUG, function()
     local state = CURRENT_STATE_ARGS[1]
@@ -86,7 +86,7 @@ function M.play_keys(self, keys, new_mode)
         vim.api.nvim_feedkeys(keys, 'itx', false)
 
         -- reset to normal mode
-        vim.cmd(UTILS.vim_escape('normal! <esc>'))
+        pcall(vim.cmd, UTILS.vim_escape('normal! <esc>'))
 
     end)
 
