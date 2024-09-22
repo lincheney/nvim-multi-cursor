@@ -14,6 +14,9 @@ vim.api.nvim_create_user_command(
                 local regex = opts.args
                 if regex == '' then
                     regex = vim.fn.getreg('/')
+                    if regex == '' then
+                        return
+                    end
                 end
 
                 -- restore the cursor
