@@ -30,7 +30,7 @@ local function process_event(state, args, mode)
         return
     end
 
-    local text_changed = args.event:match('^TextChanged')
+    local text_changed = args.event:match('^TextChanged') or args.event == 'CompleteDone'
 
     if not text_changed and vim.b.changedtick ~= state.changedtick then
         -- wait for the TextChanged* instead
@@ -64,6 +64,19 @@ local function process_event(state, args, mode)
     -- remove nop
     keys = keys:gsub(CONSTANTS.NOP, '')
 
+    if args.event == 'CompleteDone' and state.changes and not state.changes.valid then
+        local delta = {edit_region[1] - state.changes.old_finish[1], edit_region[2] - state.changes.old_finish[2]}
+        for i, cursor in ipairs(state.cursors) do
+            local mark = UTILS.get_mark(cursor.edit_region, true)
+            cursor.edit_region = UTILS.create_mark({mark[1] + delta[1], mark[2] + delta[2], mark[1], mark[2]-1}, nil, cursor.edit_region)
+        end
+        state.changes = {
+            start = {edit_region[1], edit_region[2]},
+            finish = {edit_region[3].end_row, edit_region[3].end_col},
+            valid = true,
+        }
+    end
+
     if args.event == 'WinEnter' then
         -- don't run these keys
 
@@ -72,7 +85,7 @@ local function process_event(state, args, mode)
         -- restore the cursor positions instead
         MULTI_CURSOR.restore_undo_pos(state, undotree)
 
-    elseif text_changed and state.changes
+    elseif text_changed and edit_region[3] and state.changes and state.changes.valid
         and not (mode == 'n' and (keys:match('g?[pP]$') or keys:match('".g?[gP]$'))) -- not pasting
         and vim.version.cmp(state.changes.start, state.changes.finish) < 0
         and vim.version.cmp(state.changes.start, {edit_region[1], edit_region[2]}) >= 0
@@ -183,6 +196,7 @@ function M.start(positions, anchors, options)
         'TextChangedI',
         'ModeChanged',
         'WinEnter',
+        'CompleteDone',
     }, {buffer=buffer, callback=function(args)
         process_events_soon(state, args)
     end})
@@ -195,10 +209,12 @@ function M.start(positions, anchors, options)
             local changes = {
                 start = {start_row, start_col},
                 finish = {start_row+end_row, start_col+end_col},
+                old_finish = {start_row+old_end_row, start_col+old_end_col},
+                valid = true,
             }
             if not state.changes then
                 state.changes = changes
-            elseif state.changes.finish[1] == -1 then
+            elseif not state.changes.valid then
                 -- invalid change
             else
                 -- merge these changes together
@@ -209,7 +225,7 @@ function M.start(positions, anchors, options)
             local mark = UTILS.get_mark(state.real_cursor.edit_region, true)
             if vim.version.cmp({mark[1], mark[2]}, {mark[3].end_row, mark[3].end_col}) == 0 and old_len ~= 0 then
                 -- this is an invalid change
-                state.changes.finish = {-1, -1}
+                state.changes.valid = false
             end
         end,
     })
