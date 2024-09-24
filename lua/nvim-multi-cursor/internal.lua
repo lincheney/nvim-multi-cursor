@@ -65,16 +65,19 @@ local function process_event(state, args, mode)
     keys = keys:gsub(CONSTANTS.NOP, '')
 
     if args.event == 'CompleteDone' and state.changes and not state.changes.valid then
-        local delta = {edit_region[1] - state.changes.old_finish[1], edit_region[2] - state.changes.old_finish[2]}
-        for i, cursor in ipairs(state.cursors) do
-            local mark = UTILS.get_mark(cursor.edit_region, true)
-            cursor.edit_region = UTILS.create_mark({mark[1] + delta[1], mark[2] + delta[2], mark[1], mark[2]-1}, nil, cursor.edit_region)
+        local text = vim.api.nvim_buf_get_text(0, edit_region[1], edit_region[2], edit_region[3].end_row, edit_region[3].end_col, {})
+        if table.concat(text, '\n') == vim.v.completed_item.word then
+            local delta = {edit_region[1] - state.changes.old_finish[1], edit_region[2] - state.changes.old_finish[2]}
+            for i, cursor in ipairs(state.cursors) do
+                local mark = UTILS.get_mark(cursor.edit_region, true)
+                cursor.edit_region = UTILS.create_mark({mark[1] + delta[1], mark[2] + delta[2], mark[1], mark[2]-1}, nil, cursor.edit_region)
+            end
+            state.changes = {
+                start = {edit_region[1], edit_region[2]},
+                finish = {edit_region[3].end_row, edit_region[3].end_col},
+                valid = true,
+            }
         end
-        state.changes = {
-            start = {edit_region[1], edit_region[2]},
-            finish = {edit_region[3].end_row, edit_region[3].end_col},
-            valid = true,
-        }
     end
 
     if args.event == 'WinEnter' then
