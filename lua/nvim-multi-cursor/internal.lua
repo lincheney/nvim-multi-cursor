@@ -68,7 +68,7 @@ local function process_event(state, args, mode)
         local text = vim.api.nvim_buf_get_text(0, edit_region[1], edit_region[2], edit_region[3].end_row, edit_region[3].end_col, {})
         if table.concat(text, '\n') == vim.v.completed_item.word then
             local delta = {edit_region[1] - state.changes.old_finish[1], edit_region[2] - state.changes.old_finish[2]}
-            for i, cursor in ipairs(state.cursors) do
+            for _, cursor in ipairs(state.cursors) do
                 local mark = UTILS.get_mark(cursor.edit_region, true)
                 cursor.edit_region = UTILS.create_mark({mark[1] + delta[1], mark[2] + delta[2], mark[1], mark[2]-1}, nil, cursor.edit_region)
             end
@@ -97,7 +97,7 @@ local function process_event(state, args, mode)
         -- text changed within the mark region
         -- so just grab the text out and copy it
         local text = vim.api.nvim_buf_get_text(0, edit_region[1], edit_region[2], edit_region[3].end_row, edit_region[3].end_col, {})
-        for i, cursor in ipairs(state.cursors) do
+        for _, cursor in ipairs(state.cursors) do
             local mark = UTILS.get_mark(cursor.edit_region, true)
             vim.api.nvim_buf_set_text(0, mark[1], mark[2], mark[3].end_row, mark[3].end_col, text)
         end
@@ -258,7 +258,9 @@ function M.is_active()
 end
 
 function M.set_on_leave(buffer, on_leave)
-    local buffer = buffer == 0 and vim.api.nvim_get_current_buf() or buffer
+    if buffer == 0 then
+        buffer = vim.api.nvim_get_current_buf()
+    end
     STATES[buffer].on_leave = on_leave
 end
 
